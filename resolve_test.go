@@ -3,6 +3,8 @@ package di_test
 import (
 	"errors"
 	"reflect"
+
+	"github.com/HnH/di"
 )
 
 func (suite *ContainerSuite) TestCallMulti() {
@@ -22,7 +24,7 @@ func (suite *ContainerSuite) TestCallNotAFunc() {
 
 func (suite *ContainerSuite) TestCallUnboundArg() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
-	suite.Require().EqualError(suite.container.Call(func(s Shape, d Database) {}), "container: no concrete found for: di_test.Database")
+	suite.Require().EqualError(suite.container.Call(func(s Shape, d Database) {}), "container: no binding found for: di_test.Database")
 }
 
 func (suite *ContainerSuite) TestCallReturnedError() {
@@ -54,11 +56,11 @@ func (suite *ContainerSuite) TestResolveReceiverNotAPointer() {
 
 func (suite *ContainerSuite) TestResolveUnbound() {
 	var s Shape
-	suite.Require().EqualError(suite.container.Resolve(&s), "container: no concrete found for: di_test.Shape")
+	suite.Require().EqualError(suite.container.Resolve(&s), "container: no binding found for: di_test.Shape")
 }
 
 func (suite *ContainerSuite) TestResolveInvokeError() {
-	suite.Require().NoError(suite.container.Transient(func() (Shape, error) {
+	suite.Require().NoError(suite.container.Factory(func() (Shape, error) {
 		return nil, errors.New("dummy error")
 	}))
 
@@ -68,7 +70,7 @@ func (suite *ContainerSuite) TestResolveInvokeError() {
 
 func (suite *ContainerSuite) TestFillStruct() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
-	suite.Require().NoError(suite.container.NamedSingleton("R", suite.newRectangle))
+	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
 	suite.Require().NoError(suite.container.Singleton(suite.newMySQL))
 
 	var target = struct {
@@ -92,8 +94,8 @@ func (suite *ContainerSuite) TestFillStruct() {
 }
 
 func (suite *ContainerSuite) TestFillSlice() {
-	suite.Require().NoError(suite.container.NamedSingleton("circle", suite.newCircle))
-	suite.Require().NoError(suite.container.NamedSingleton("square", suite.newRectangle))
+	suite.Require().NoError(suite.container.Singleton(suite.newCircle, di.WithName("circle")))
+	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("square")))
 
 	var shapes []Shape
 	suite.Require().NoError(suite.container.Fill(&shapes))
@@ -112,8 +114,8 @@ func (suite *ContainerSuite) TestFillSlice() {
 }
 
 func (suite *ContainerSuite) TestFillMap() {
-	suite.Require().NoError(suite.container.NamedSingleton("circle", suite.newCircle))
-	suite.Require().NoError(suite.container.NamedSingleton("square", suite.newRectangle))
+	suite.Require().NoError(suite.container.Singleton(suite.newCircle, di.WithName("circle")))
+	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("square")))
 
 	var shapes map[string]Shape
 	suite.Require().NoError(suite.container.Fill(&shapes))
@@ -126,7 +128,6 @@ func (suite *ContainerSuite) TestFillMap() {
 	_, ok = shapes["square"]
 	suite.Require().True(ok)
 	suite.Require().IsType(&Rectangle{}, shapes["square"])
-
 }
 
 func (suite *ContainerSuite) TestFillReceiverInvalid() {
@@ -145,16 +146,16 @@ func (suite *ContainerSuite) TestFillReceiverNotAPointer() {
 }
 
 func (suite *ContainerSuite) TestFillInvalidName() {
-	suite.Require().NoError(suite.container.NamedSingleton("R", suite.newRectangle))
+	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
 	var target = struct {
 		S Shape `container:"name"`
 	}{}
 
-	suite.Require().EqualError(suite.container.Fill(&target), "container: cannot resolve S field")
+	suite.Require().EqualError(suite.container.Fill(&target), "container: no binding found for: Shape")
 }
 
 func (suite *ContainerSuite) TestFillInvalidTag() {
-	suite.Require().NoError(suite.container.NamedSingleton("R", suite.newRectangle))
+	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
 	var target = struct {
 		S Shape `container:"invalid"`
 	}{}
@@ -162,9 +163,19 @@ func (suite *ContainerSuite) TestFillInvalidTag() {
 	suite.Require().EqualError(suite.container.Fill(&target), "container: S has an invalid struct tag")
 }
 
+func (suite *ContainerSuite) TestFillSliceUnbound() {
+	var list []Shape
+	suite.Require().EqualError(suite.container.Fill(&list), "container: no binding found for: di_test.Shape")
+}
+
 func (suite *ContainerSuite) TestFillInvalidMap() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
 
 	var list = map[int]Shape{}
 	suite.Require().EqualError(suite.container.Fill(&list), "container: invalid receiver")
+}
+
+func (suite *ContainerSuite) TestFillMapUnbound() {
+	var list map[string]Shape
+	suite.Require().EqualError(suite.container.Fill(&list), "container: no binding found for: di_test.Shape")
 }

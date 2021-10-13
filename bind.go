@@ -11,23 +11,37 @@ type binding struct {
 	instance interface{} // instance stored for reusing in singleton bindings
 }
 
-// bind maps an abstraction to a concrete and sets an instance if it's a singleton binding.
-func (c Container) bind(resolver interface{}, name string, singleton bool) (err error) {
-	reflectedResolver := reflect.TypeOf(resolver)
+// resolve creates an appropriate implementation of the related abstraction
+func (b binding) resolve(c Container) (interface{}, error) {
+	if b.instance != nil {
+		return b.instance, nil
+	}
+
+	var out, err = c.invoke(b.resolver)
+	if err != nil {
+		return nil, err
+	}
+
+	return out[0].Interface(), nil
+}
+
+// bind creates a binding for an abstraction
+func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
+	var reflectedResolver = reflect.TypeOf(resolver)
 	if reflectedResolver.Kind() != reflect.Func {
 		return errors.New("container: the resolver must be a function")
 	}
 
 	var instances []reflect.Value
 	switch {
-	case singleton:
+	case !opts.factory:
 		if instances, err = c.invoke(resolver); err != nil {
 			return
 		}
 
-	case !singleton && reflectedResolver.NumOut() > 2,
-		!singleton && reflectedResolver.NumOut() == 2 && !c.isError(reflectedResolver.Out(1)),
-		!singleton && reflectedResolver.NumOut() == 1 && c.isError(reflectedResolver.Out(0)):
+	case opts.factory && reflectedResolver.NumOut() > 2,
+		opts.factory && reflectedResolver.NumOut() == 2 && !c.isError(reflectedResolver.Out(1)),
+		opts.factory && reflectedResolver.NumOut() == 1 && c.isError(reflectedResolver.Out(0)):
 		return errors.New("container: transient value resolvers must return exactly one value and optionally one error")
 	}
 
@@ -37,14 +51,15 @@ func (c Container) bind(resolver interface{}, name string, singleton bool) (err 
 			continue
 		}
 
-		if _, exist := c[reflectedResolver.Out(i)]; !exist {
+		if _, ok := c[reflectedResolver.Out(i)]; !ok {
 			c[reflectedResolver.Out(i)] = make(map[string]binding)
 		}
 
-		if singleton {
-			c[reflectedResolver.Out(i)][name] = binding{resolver: resolver, instance: instances[i].Interface()}
+		// TODO: match name and returned instances cound
+		if opts.factory {
+			c[reflectedResolver.Out(i)][opts.names[0]] = binding{resolver: resolver}
 		} else {
-			c[reflectedResolver.Out(i)][name] = binding{resolver: resolver}
+			c[reflectedResolver.Out(i)][opts.names[0]] = binding{resolver: resolver, instance: instances[i].Interface()}
 		}
 	}
 
@@ -54,25 +69,18 @@ func (c Container) bind(resolver interface{}, name string, singleton bool) (err 
 // Singleton binds an abstraction to concrete for further singleton resolves.
 // It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
 // The resolver function can have arguments of abstraction that have been declared in the Container already.
-func (c Container) Singleton(resolver interface{}) error {
-	return c.bind(resolver, "", true)
+func (c Container) Singleton(resolver interface{}, opts ...Option) error {
+	return c.bind(resolver, newBindOptions(opts))
 }
 
-// NamedSingleton binds like the Singleton method but for named bindings.
-func (c Container) NamedSingleton(name string, resolver interface{}) error {
-	return c.bind(resolver, name, true)
-}
-
-// Transient binds an abstraction to concrete for further transient resolves.
+// Factory binds an abstraction to concrete for further transient resolves.
 // It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
 // The resolver function can have arguments of abstraction that have been declared in the Container already.
-func (c Container) Transient(resolver interface{}) error {
-	return c.bind(resolver, "", false)
-}
+func (c Container) Factory(resolver interface{}, opts ...Option) error {
+	var options = newBindOptions(opts)
+	options.factory = true
 
-// NamedTransient binds like the Transient method but for named bindings.
-func (c Container) NamedTransient(name string, resolver interface{}) error {
-	return c.bind(resolver, name, false)
+	return c.bind(resolver, options)
 }
 
 // Reset deletes all the existing bindings and empties the container instance.

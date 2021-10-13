@@ -20,25 +20,15 @@ var container = New()
 // Singleton binds an abstraction to concrete for further singleton resolves.
 // It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
 // The resolver function can have arguments of abstraction that have been declared in the Container already.
-func Singleton(resolver interface{}) error {
-	return container.Singleton(resolver)
+func Singleton(resolver interface{}, opts ...Option) error {
+	return container.Singleton(resolver, opts...)
 }
 
-// NamedSingleton binds like the Singleton method but for named bindings.
-func NamedSingleton(name string, resolver interface{}) error {
-	return container.NamedSingleton(name, resolver)
-}
-
-// Transient binds an abstraction to concrete for further transient resolves.
+// Factory binds an abstraction to concrete for further transient resolves.
 // It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
 // The resolver function can have arguments of abstraction that have been declared in the Container already.
-func Transient(resolver interface{}) error {
-	return container.Transient(resolver)
-}
-
-// NamedTransient binds like the Transient method but for named bindings.
-func NamedTransient(name string, resolver interface{}) error {
-	return container.NamedTransient(name, resolver)
+func Factory(resolver interface{}, opts ...Option) error {
+	return container.Factory(resolver, opts...)
 }
 
 // Reset deletes all the existing bindings and empties the container instance.
@@ -53,13 +43,8 @@ func Call(receiver interface{}) error {
 }
 
 // Resolve takes an abstraction (interface reference) and fills it with the related implementation.
-func Resolve(abstraction interface{}) error {
-	return container.Resolve(abstraction)
-}
-
-// NamedResolve resolves like the Resolve method but for named bindings.
-func NamedResolve(abstraction interface{}, name string) error {
-	return container.NamedResolve(abstraction, name)
+func Resolve(abstraction interface{}, opts ...Option) error {
+	return container.Resolve(abstraction, opts...)
 }
 
 // Fill takes a struct and resolves the fields with the tag `container:"inject"`

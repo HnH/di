@@ -9,23 +9,26 @@ import (
 
 // arguments returns container-resolved arguments of a function.
 func (c Container) arguments(function interface{}) ([]reflect.Value, error) {
-	reflectedFunction := reflect.TypeOf(function)
-	argumentsCount := reflectedFunction.NumIn()
-	arguments := make([]reflect.Value, argumentsCount)
+	var (
+		ref  = reflect.TypeOf(function)
+		args = make([]reflect.Value, ref.NumIn())
+	)
 
-	for i := 0; i < argumentsCount; i++ {
-		abstraction := reflectedFunction.In(i)
-
-		if concrete, exist := c[abstraction][""]; exist {
-			instance, _ := concrete.resolve(c)
-
-			arguments[i] = reflect.ValueOf(instance)
-		} else {
-			return nil, errors.New("container: no concrete found for: " + abstraction.String())
+	for i := 0; i < ref.NumIn(); i++ {
+		var bnd, ok = c[ref.In(i)][""]
+		if !ok {
+			return nil, errors.New("container: no binding found for: " + ref.In(i).String())
 		}
+
+		var instance, err = bnd.resolve(c)
+		if err != nil {
+			return nil, err
+		}
+
+		args[i] = reflect.ValueOf(instance)
 	}
 
-	return arguments, nil
+	return args, nil
 }
 
 // invoke calls a function and returns the yielded values.
@@ -44,20 +47,6 @@ func (c Container) invoke(function interface{}) (out []reflect.Value, err error)
 	return
 }
 
-// resolve creates an appropriate implementation of the related abstraction
-func (b binding) resolve(c Container) (interface{}, error) {
-	if b.instance != nil {
-		return b.instance, nil
-	}
-
-	out, err := c.invoke(b.resolver)
-	if err != nil {
-		return nil, err
-	}
-
-	return out[0].Interface(), nil
-}
-
 func (c Container) isError(v reflect.Type) bool {
 	return v.Implements(reflect.TypeOf((*error)(nil)).Elem())
 }
@@ -65,17 +54,17 @@ func (c Container) isError(v reflect.Type) bool {
 // Call takes a function (receiver) with one or more arguments of the abstractions (interfaces).
 // It invokes the function (receiver) and passes the related implementations.
 func (c Container) Call(function interface{}) error {
-	receiverType := reflect.TypeOf(function)
+	var receiverType = reflect.TypeOf(function)
 	if receiverType == nil || receiverType.Kind() != reflect.Func {
 		return errors.New("container: invalid function")
 	}
 
-	args, err := c.arguments(function)
+	var args, err = c.arguments(function)
 	if err != nil {
 		return err
 	}
 
-	out := reflect.ValueOf(function).Call(args)
+	var out = reflect.ValueOf(function).Call(args)
 	// if there is something returned from a function and the last value is error and it's not nil then return it
 	if len(out) > 0 && out[len(out)-1].Type().Implements(reflect.TypeOf((*error)(nil)).Elem()) && !out[len(out)-1].IsNil() {
 		return out[len(out)-1].Interface().(error)
@@ -85,40 +74,39 @@ func (c Container) Call(function interface{}) error {
 }
 
 // Resolve takes an abstraction (interface reference) and fills it with the related implementation.
-func (c Container) Resolve(abstraction interface{}) error {
-	return c.NamedResolve(abstraction, "")
-}
-
-// NamedResolve resolves like the Resolve method but for named bindings.
-func (c Container) NamedResolve(abstraction interface{}, name string) error {
-	receiverType := reflect.TypeOf(abstraction)
+func (c Container) Resolve(abstraction interface{}, opts ...Option) error {
+	var receiverType = reflect.TypeOf(abstraction)
 	if receiverType == nil {
 		return errors.New("container: invalid abstraction")
 	}
 
-	if receiverType.Kind() == reflect.Ptr {
-		elem := receiverType.Elem()
-
-		if concrete, exist := c[elem][name]; exist {
-			if instance, err := concrete.resolve(c); err != nil {
-				return err
-			} else {
-				reflect.ValueOf(abstraction).Elem().Set(reflect.ValueOf(instance))
-			}
-
-			return nil
-		}
-
-		return errors.New("container: no concrete found for: " + elem.String())
+	if receiverType.Kind() != reflect.Ptr {
+		return errors.New("container: invalid abstraction")
 	}
 
-	return errors.New("container: invalid abstraction")
+	var (
+		options = newResolveOptions(opts)
+		bnd, ok = c[receiverType.Elem()][options.name]
+	)
+
+	if !ok {
+		return errors.New("container: no binding found for: " + receiverType.Elem().String())
+	}
+
+	var instance, err = bnd.resolve(c)
+	if err != nil {
+		return err
+	}
+
+	reflect.ValueOf(abstraction).Elem().Set(reflect.ValueOf(instance))
+
+	return nil
 }
 
 // Fill takes a struct and resolves the fields with the tag `container:"inject"`.
 // Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
 func (c Container) Fill(receiver interface{}) error {
-	receiverType := reflect.TypeOf(receiver)
+	var receiverType = reflect.TypeOf(receiver)
 	if receiverType == nil {
 		return errors.New("container: invalid receiver")
 	}
@@ -146,72 +134,80 @@ func (c Container) Fill(receiver interface{}) error {
 }
 
 func (c Container) fillStruct(receiver interface{}) error {
-	s := reflect.ValueOf(receiver).Elem()
-
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
-
-		if t, exist := s.Type().Field(i).Tag.Lookup("container"); exist {
-			var name string
-
-			if t == "type" {
-				name = ""
-			} else if t == "name" {
-				name = s.Type().Field(i).Name
-			} else {
-				return errors.New(
-					fmt.Sprintf("container: %v has an invalid struct tag", s.Type().Field(i).Name),
-				)
-			}
-
-			if concrete, exist := c[f.Type()][name]; exist {
-				instance, _ := concrete.resolve(c)
-
-				ptr := reflect.NewAt(f.Type(), unsafe.Pointer(f.UnsafeAddr())).Elem()
-				ptr.Set(reflect.ValueOf(instance))
-
-				continue
-			}
-
-			return errors.New(fmt.Sprintf("container: cannot resolve %v field", s.Type().Field(i).Name))
+	var elem = reflect.ValueOf(receiver).Elem()
+	for i := 0; i < elem.NumField(); i++ {
+		var tag, ok = elem.Type().Field(i).Tag.Lookup("container")
+		if !ok {
+			continue
 		}
+
+		var name string
+		switch tag {
+		case "type":
+			name = "" // TODO: default name
+
+		case "name":
+			name = elem.Type().Field(i).Name
+
+		default:
+			return fmt.Errorf("container: %v has an invalid struct tag", elem.Type().Field(i).Name)
+		}
+
+		var bnd binding
+		if bnd, ok = c[elem.Field(i).Type()][name]; !ok {
+			return fmt.Errorf("container: no binding found for: %v", elem.Field(i).Type().Name())
+		}
+
+		var instance, err = bnd.resolve(c)
+		if err != nil {
+			return err
+		}
+
+		var ptr = reflect.NewAt(elem.Field(i).Type(), unsafe.Pointer(elem.Field(i).UnsafeAddr())).Elem()
+		ptr.Set(reflect.ValueOf(instance))
 	}
 
 	return nil
 }
 
 func (c Container) fillSlice(receiver interface{}) error {
-	elem := reflect.TypeOf(receiver).Elem()
+	var elem = reflect.TypeOf(receiver).Elem()
+	if _, ok := c[elem.Elem()]; !ok {
+		return fmt.Errorf("container: no binding found for: %v", elem.Elem().String())
+	}
 
-	if _, exist := c[elem.Elem()]; exist {
-		result := reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, len(c[elem.Elem()]))
-
-		for _, concrete := range c[elem.Elem()] {
-			instance, _ := concrete.resolve(c)
-
-			result = reflect.Append(result, reflect.ValueOf(instance))
+	var result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, len(c[elem.Elem()]))
+	for _, bnd := range c[elem.Elem()] {
+		var instance, err = bnd.resolve(c)
+		if err != nil {
+			return err
 		}
 
-		reflect.ValueOf(receiver).Elem().Set(result)
+		result = reflect.Append(result, reflect.ValueOf(instance))
 	}
+
+	reflect.ValueOf(receiver).Elem().Set(result)
 
 	return nil
 }
 
 func (c Container) fillMap(receiver interface{}) error {
-	elem := reflect.TypeOf(receiver).Elem()
+	var elem = reflect.TypeOf(receiver).Elem()
+	if _, ok := c[elem.Elem()]; !ok {
+		return fmt.Errorf("container: no binding found for: %v", elem.Elem().String())
+	}
 
-	if _, exist := c[elem.Elem()]; exist {
-		result := reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), len(c[elem.Elem()]))
-
-		for name, concrete := range c[elem.Elem()] {
-			instance, _ := concrete.resolve(c)
-
-			result.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(instance))
+	var result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), len(c[elem.Elem()]))
+	for name, bnd := range c[elem.Elem()] {
+		var instance, err = bnd.resolve(c)
+		if err != nil {
+			return err
 		}
 
-		reflect.ValueOf(receiver).Elem().Set(result)
+		result.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(instance))
 	}
+
+	reflect.ValueOf(receiver).Elem().Set(result)
 
 	return nil
 }

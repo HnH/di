@@ -35,14 +35,11 @@ func (suite *ContainerSuite) newMySQL() Database {
 
 func (suite *ContainerSuite) TestCoverageBump() {
 	suite.Require().NoError(di.Singleton(suite.newCircle))
-	suite.Require().NoError(di.NamedSingleton("R", suite.newRectangle))
-	suite.Require().NoError(di.Transient(suite.newCircle))
-	suite.Require().NoError(di.NamedTransient("R", suite.newRectangle))
+	suite.Require().NoError(di.Factory(suite.newCircle))
 	suite.Require().NoError(di.Call(func(s Shape) { return }))
 
 	var target Shape
 	suite.Require().NoError(di.Resolve(&target))
-	suite.Require().NoError(di.NamedResolve(&target, "R"))
 
 	var list []Shape
 	suite.Require().NoError(di.Fill(&list))

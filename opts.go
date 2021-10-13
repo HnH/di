@@ -25,7 +25,7 @@ type bindOptions struct {
 }
 
 func newBindOptions(opts []Option) (out bindOptions) {
-	out.names = []string{""}
+	out.names = []string{defaultBindName}
 	for _, o := range opts {
 		out.Apply(o)
 	}
@@ -47,6 +47,7 @@ type resolveOptions struct {
 }
 
 func newResolveOptions(opts []Option) (out resolveOptions) {
+	out.name = defaultBindName
 	for _, o := range opts {
 		out.Apply(o)
 	}

@@ -5,6 +5,8 @@ import (
 	"reflect"
 )
 
+const defaultBindName = "default"
+
 // binding holds a binding resolver and an instance (for singleton bindings).
 type binding struct {
 	resolver interface{} // resolver function that creates the appropriate implementation of the related abstraction

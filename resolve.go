@@ -15,7 +15,7 @@ func (c Container) arguments(function interface{}) ([]reflect.Value, error) {
 	)
 
 	for i := 0; i < ref.NumIn(); i++ {
-		var bnd, ok = c[ref.In(i)][""]
+		var bnd, ok = c[ref.In(i)][defaultBindName]
 		if !ok {
 			return nil, errors.New("container: no binding found for: " + ref.In(i).String())
 		}
@@ -90,7 +90,7 @@ func (c Container) Resolve(abstraction interface{}, opts ...Option) error {
 	)
 
 	if !ok {
-		return errors.New("container: no binding found for: " + receiverType.Elem().String())
+		return fmt.Errorf("container: no binding found for: %s", receiverType.Elem().String())
 	}
 
 	var instance, err = bnd.resolve(c)
@@ -144,7 +144,7 @@ func (c Container) fillStruct(receiver interface{}) error {
 		var name string
 		switch tag {
 		case "type":
-			name = "" // TODO: default name
+			name = defaultBindName
 
 		case "name":
 			name = elem.Type().Field(i).Name

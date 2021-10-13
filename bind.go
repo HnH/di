@@ -29,39 +29,72 @@ func (b binding) resolve(c Container) (interface{}, error) {
 
 // bind creates a binding for an abstraction
 func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
-	var reflectedResolver = reflect.TypeOf(resolver)
-	if reflectedResolver.Kind() != reflect.Func {
+	var ref = reflect.TypeOf(resolver)
+	if ref.Kind() != reflect.Func {
 		return errors.New("container: the resolver must be a function")
+	}
+
+	// if resolver returns no useful values
+	if ref.NumOut() == 0 || ref.NumOut() == 1 && c.isError(ref.Out(0)) {
+		return errors.New("container: the resolver must return useful values")
+	}
+
+	var numRealInstances = ref.NumOut()
+	if c.isError(ref.Out(numRealInstances - 1)) {
+		numRealInstances--
 	}
 
 	var instances []reflect.Value
 	switch {
 	case !opts.factory:
+		if numRealInstances > 1 && len(opts.names) > 1 && numRealInstances != len(opts.names) {
+			return errors.New("container: the resolver that returns multiple values must be called with either one name or number of names equal to number of values")
+		}
+
 		if instances, err = c.invoke(resolver); err != nil {
 			return
 		}
 
-	case opts.factory && reflectedResolver.NumOut() > 2,
-		opts.factory && reflectedResolver.NumOut() == 2 && !c.isError(reflectedResolver.Out(1)),
-		opts.factory && reflectedResolver.NumOut() == 1 && c.isError(reflectedResolver.Out(0)):
-		return errors.New("container: transient value resolvers must return exactly one value and optionally one error")
+	case opts.factory && (ref.NumOut() == 2 && !c.isError(ref.Out(1)) || ref.NumOut() > 2):
+		return errors.New("container: factory resolvers must return exactly one value and optionally one error")
 	}
 
-	for i := 0; i < reflectedResolver.NumOut(); i++ {
+	for i := 0; i < numRealInstances; i++ {
 		// we are not interested in returned errors
-		if c.isError(reflectedResolver.Out(i)) {
+		if c.isError(ref.Out(i)) {
 			continue
 		}
 
-		if _, ok := c[reflectedResolver.Out(i)]; !ok {
-			c[reflectedResolver.Out(i)] = make(map[string]binding)
+		if _, ok := c[ref.Out(i)]; !ok {
+			c[ref.Out(i)] = make(map[string]binding)
 		}
 
-		// TODO: match name and returned instances cound
+		if opts.names == nil {
+			opts.names = []string{defaultBindName}
+		}
+
+		var name = opts.names[0]
+
+		// Factory method
 		if opts.factory {
-			c[reflectedResolver.Out(i)][opts.names[0]] = binding{resolver: resolver}
-		} else {
-			c[reflectedResolver.Out(i)][opts.names[0]] = binding{resolver: resolver, instance: instances[i].Interface()}
+			c[ref.Out(i)][name] = binding{resolver: resolver}
+			continue
+		}
+
+		// Singleton instances
+		// if there is more than one instance returned from resolver - use appropriate name for it
+		if numRealInstances > 1 {
+			if len(opts.names) > 1 {
+				name = opts.names[i]
+			}
+
+			c[ref.Out(i)][name] = binding{resolver: resolver, instance: instances[i].Interface()}
+			continue
+		}
+
+		// if only one instance is returned from resolver - bind it under all provided names
+		for _, name = range opts.names {
+			c[ref.Out(i)][name] = binding{resolver: resolver, instance: instances[i].Interface()}
 		}
 	}
 

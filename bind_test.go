@@ -8,15 +8,33 @@ import (
 
 func (suite *ContainerSuite) TestSingleton() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
-	suite.Require().NoError(suite.container.Singleton(func() {}))
 
-	// suite.container equals?
 	suite.Require().NoError(suite.container.Call(func(s1 Shape) {
 		s1.SetArea(666)
 	}))
+
 	suite.Require().NoError(suite.container.Call(func(s2 Shape) {
 		suite.Require().Equal(s2.GetArea(), 666)
 	}))
+}
+
+func (suite *ContainerSuite) TestSingletonAlias() {
+	suite.Require().NoError(suite.container.Singleton(func() Shape {
+		return &Rectangle{a: 4444}
+	}, di.WithName("kek", "bek")))
+
+	var s Shape
+	suite.Require().NoError(suite.container.Resolve(&s, di.WithName("kek")))
+	suite.Require().IsType(&Rectangle{}, s)
+	suite.Require().Equal(4444, s.GetArea())
+
+	var s2 Shape
+	suite.Require().NoError(suite.container.Resolve(&s2, di.WithName("bek")))
+	suite.Require().IsType(&Rectangle{}, s2)
+	suite.Require().Equal(4444, s2.GetArea())
+
+	var s3 Shape
+	suite.Require().EqualError(suite.container.Resolve(&s3), "container: no binding found for: di_test.Shape")
 }
 
 func (suite *ContainerSuite) TestSingletonMulti() {
@@ -37,6 +55,33 @@ func (suite *ContainerSuite) TestSingletonMulti() {
 	suite.Require().EqualError(suite.container.Resolve(&err), "container: no binding found for: error")
 }
 
+func (suite *ContainerSuite) TestSingletonMultiNaming() {
+	suite.Require().NoError(suite.container.Singleton(func() (Shape, Database, error) {
+		return &Rectangle{a: 777}, &MySQL{}, nil
+	}, di.WithName("kek", "bek")))
+
+	var s Shape
+	suite.Require().NoError(suite.container.Resolve(&s, di.WithName("kek")))
+	suite.Require().IsType(&Rectangle{}, s)
+	suite.Require().Equal(777, s.GetArea())
+
+	var db Database
+	suite.Require().NoError(suite.container.Resolve(&db, di.WithName("bek")))
+	suite.Require().IsType(&MySQL{}, db)
+
+	var err error
+	suite.Require().EqualError(suite.container.Resolve(&err), "container: no binding found for: error")
+}
+
+func (suite *ContainerSuite) TestSingletonMultiNamingCountMismatch() {
+	suite.Require().EqualError(
+		suite.container.Singleton(func() (Shape, Database, error) {
+			return &Rectangle{a: 777}, &MySQL{}, nil
+		}, di.WithName("kek", "bek", "dek")),
+		"container: the resolver that returns multiple values must be called with either one name or number of names equal to number of values",
+	)
+}
+
 func (suite *ContainerSuite) TestSingletonBindError() {
 	suite.Require().EqualError(suite.container.Singleton(func() (Shape, error) {
 		return nil, errors.New("binding error")
@@ -45,6 +90,14 @@ func (suite *ContainerSuite) TestSingletonBindError() {
 
 func (suite *ContainerSuite) TestSingletonResolverNotAFunc() {
 	suite.Require().EqualError(suite.container.Singleton("STRING!"), "container: the resolver must be a function")
+}
+
+func (suite *ContainerSuite) TestSingletonResolverNumUsefulValues() {
+	suite.Require().EqualError(suite.container.Factory(func() {}), "container: the resolver must return useful values")
+
+	suite.Require().EqualError(suite.container.Factory(func() error {
+		return errors.New("dummy error")
+	}), "container: the resolver must return useful values")
 }
 
 func (suite *ContainerSuite) TestSingletonResolvableArgs() {
@@ -94,15 +147,11 @@ func (suite *ContainerSuite) TestFactoryNamed() {
 func (suite *ContainerSuite) TestFactoryMultiError() {
 	suite.Require().EqualError(suite.container.Factory(func() (Circle, Rectangle, Database) {
 		return Circle{a: 666}, Rectangle{a: 666}, &MySQL{}
-	}), "container: transient value resolvers must return exactly one value and optionally one error")
+	}), "container: factory resolvers must return exactly one value and optionally one error")
 
 	suite.Require().EqualError(suite.container.Factory(func() (Shape, Database) {
 		return &Circle{a: 666}, &MySQL{}
-	}), "container: transient value resolvers must return exactly one value and optionally one error")
-
-	suite.Require().EqualError(suite.container.Factory(func() error {
-		return errors.New("dummy error")
-	}), "container: transient value resolvers must return exactly one value and optionally one error")
+	}), "container: factory resolvers must return exactly one value and optionally one error")
 
 	suite.Require().NoError(suite.container.Factory(func() (Shape, error) {
 		return nil, errors.New("dummy error")

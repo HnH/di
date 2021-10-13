@@ -25,7 +25,6 @@ type bindOptions struct {
 }
 
 func newBindOptions(opts []Option) (out bindOptions) {
-	out.names = []string{defaultBindName}
 	for _, o := range opts {
 		out.Apply(o)
 	}

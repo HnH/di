@@ -10,9 +10,9 @@ import (
 // Container is responsible for abstraction binding
 type Container interface {
 	Singleton(constructor interface{}, opts ...Option) error
+	Instance(instance interface{}, name string) error
 	Factory(constructor interface{}, opts ...Option) error
-	GetBinding(abstraction reflect.Type, name string) (Binding, error)
-	GetAllBindings(reflect.Type) (map[string]Binding, error)
+	ListBindings(reflect.Type) (map[string]Binding, error)
 	Reset()
 }
 
@@ -28,40 +28,40 @@ type container struct {
 	lock     sync.RWMutex
 }
 
-const defaultBindName = "default"
+// DefaultBindName is the name that is used in containers by default when binding values.
+const DefaultBindName = "default"
 
-// Binding holds either singleton instances or factory methods for bindings
+// Binding holds either singleton instance or factory method for a binding
 type Binding struct {
 	factory  interface{} // factory method that creates the appropriate implementation of the abstraction
 	instance interface{} // instance stored for reusing in singleton bindings
 }
 
-func (self *container) GetAllBindings(abstraction reflect.Type) (bnds map[string]Binding, err error) {
+func (self *container) ListBindings(abstraction reflect.Type) (map[string]Binding, error) {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
-	var ok bool
-	if bnds, ok = self.bindings[abstraction]; !ok {
+	var bnds, ok = self.bindings[abstraction]
+	if !ok {
 		return bnds, fmt.Errorf("di: no binding found for: %s", abstraction.String())
 	}
 
-	return
+	return bnds, nil
 }
 
-func (self *container) GetBinding(abstraction reflect.Type, name string) (bnd Binding, err error) {
+// Instance receives ready instance and bind it to it's REAL type, which means that declared abstract variable type (interface) is ignored
+func (self *container) Instance(instance interface{}, name string) error {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
-	var ok bool
-	if _, ok = self.bindings[abstraction]; !ok {
-		return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+	var ref = reflect.TypeOf(instance)
+	if _, ok := self.bindings[ref]; !ok {
+		self.bindings[ref] = make(map[string]Binding)
 	}
 
-	if bnd, ok = self.bindings[abstraction][name]; !ok {
-		return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
-	}
+	self.bindings[ref][name] = Binding{instance: instance}
 
-	return
+	return nil
 }
 
 func (self *container) getResolver() *resolver {
@@ -121,7 +121,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 		}
 
 		if opts.names == nil {
-			opts.names = []string{defaultBindName}
+			opts.names = []string{DefaultBindName}
 		}
 
 		var name = opts.names[0]

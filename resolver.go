@@ -7,34 +7,61 @@ import (
 	"unsafe"
 )
 
-func NewResolver(containers ...Container) (Resolver, error) {
-	if len(containers) == 0 {
-		return nil, errors.New("di: no containers provider")
+func NewResolver(containers ...Container) Resolver {
+	if containers == nil {
+		containers = make([]Container, 0)
 	}
 
 	return &resolver{
 		list: containers,
-	}, nil
+	}
 }
 
 type Resolver interface {
+	With(instances ...interface{}) Resolver
 	Resolve(receiver interface{}, opts ...Option) error
 	Call(function interface{}, opts ...Option) error
 	Fill(receiver interface{}) error
 }
 
 type resolver struct {
-	list []Container
+	list      []Container
+	instances []interface{}
 }
 
 func (self *resolver) getBinding(abstraction reflect.Type, name string) (bnd Binding, err error) {
-	for _, cnt := range self.list {
-		if bnd, err = cnt.GetBinding(abstraction, name); err == nil {
-			break
+	// look in with-instance list
+	for _, inst := range self.instances {
+		if reflect.TypeOf(inst).AssignableTo(abstraction) && name == DefaultBindName {
+			return Binding{
+				instance: inst,
+			}, nil
 		}
 	}
 
-	return
+	// look in containers
+	var list map[string]Binding
+	for _, cnt := range self.list {
+		if list, err = cnt.ListBindings(abstraction); err != nil {
+			continue
+		}
+
+		var ok bool
+		if bnd, ok = list[name]; ok {
+			return bnd, nil
+		}
+	}
+
+	return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+}
+
+func (self *resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
+	var bnd, err = self.getBinding(abstraction, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return self.resolveBindingInstance(bnd)
 }
 
 func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
@@ -52,15 +79,6 @@ func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 	return out[0].Interface(), nil
 }
 
-func (self *resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
-	var bnd, err = self.getBinding(abstraction, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return self.resolveBindingInstance(bnd)
-}
-
 // arguments returns container-resolved arguments of a function.
 func (self *resolver) arguments(function interface{}) ([]reflect.Value, error) {
 	var (
@@ -69,7 +87,7 @@ func (self *resolver) arguments(function interface{}) ([]reflect.Value, error) {
 	)
 
 	for i := 0; i < ref.NumIn(); i++ {
-		var instance, err = self.resolveBinding(ref.In(i), defaultBindName)
+		var instance, err = self.resolveBinding(ref.In(i), DefaultBindName)
 		if err != nil {
 			return nil, err
 		}
@@ -94,6 +112,18 @@ func (self *resolver) invoke(function interface{}) (out []reflect.Value, err err
 	}
 
 	return
+}
+
+// With takes a list of ready instances and tries to use them in resolving scenarios
+func (self *resolver) With(instances ...interface{}) Resolver {
+	var res = &resolver{
+		list:      make([]Container, len(self.list)),
+		instances: instances, // this is required for us to be able to resolve already existing instances to abstract types (interfaces)
+	}
+
+	copy(res.list, self.list)
+
+	return res
 }
 
 // Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.
@@ -199,7 +229,7 @@ func (self *resolver) fillStruct(receiver interface{}) error {
 		var name string
 		switch tag {
 		case "type":
-			name = defaultBindName
+			name = DefaultBindName
 
 		case "name":
 			name = elem.Type().Field(i).Name
@@ -227,7 +257,7 @@ func (self *resolver) fillSlice(receiver interface{}) error {
 	)
 
 	for _, cnt := range self.list {
-		var bindings, err = cnt.GetAllBindings(elem.Elem())
+		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue
 		}
@@ -258,7 +288,7 @@ func (self *resolver) fillMap(receiver interface{}) error {
 	)
 
 	for _, cnt := range self.list {
-		var bindings, err = cnt.GetAllBindings(elem.Elem())
+		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue
 		}

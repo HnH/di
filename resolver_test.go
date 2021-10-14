@@ -22,16 +22,11 @@ type ResolverSuite struct {
 
 func (suite *ResolverSuite) SetupSuite() {
 	suite.container = di.NewContainer()
-	suite.resolver, _ = di.NewResolver(suite.container)
+	suite.resolver = di.NewResolver(suite.container)
 }
 
 func (suite *ResolverSuite) TearDownTest() {
 	suite.container.Reset()
-}
-
-func (suite *ResolverSuite) TestConstructor() {
-	var _, err = di.NewResolver()
-	suite.Require().EqualError(err, "di: no containers provider")
 }
 
 func (suite *ResolverSuite) TestCallMulti() {
@@ -59,6 +54,15 @@ func (suite *ResolverSuite) TestCallReturn() {
 
 	suite.Require().Equal("mysql", str)
 	suite.Require().IsType(&MySQL{}, db)
+}
+
+func (suite *ResolverSuite) TestCallWith() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
+
+	var db = newMySQL()
+
+	suite.Require().EqualError(suite.resolver.Call(func(s Shape, db Database) { return }), "di: no binding found for: di_test.Database")
+	suite.Require().NoError(suite.resolver.With(db).Call(func(s Shape, db Database) { return }))
 }
 
 func (suite *ResolverSuite) TestCallNotAFunc() {
@@ -113,15 +117,15 @@ func (suite *ResolverSuite) TestResolve() {
 
 func (suite *ResolverSuite) TestResolveMultiContainer() {
 	var (
-		localContainer   = di.NewContainer()
-		localResolver, _ = di.NewResolver(localContainer, suite.container)
+		localContainer = di.NewContainer()
+		localResolver  = di.NewResolver(localContainer, suite.container)
 	)
 
 	suite.Require().NoError(suite.container.Singleton(newRectangle))
 	suite.Require().NoError(localContainer.Singleton(newMySQL))
 
 	var s Shape
-	suite.Require().NoError(suite.resolver.Resolve(&s))
+	suite.Require().NoError(localResolver.Resolve(&s))
 	suite.Require().IsType(&Rectangle{}, s)
 
 	var db Database

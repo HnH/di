@@ -21,7 +21,7 @@ type ContainerSuite struct {
 
 func (suite *ContainerSuite) SetupSuite() {
 	suite.container = di.NewContainer()
-	suite.resolver, _ = di.NewResolver(suite.container)
+	suite.resolver = di.NewResolver(suite.container)
 }
 
 func (suite *ContainerSuite) TearDownTest() {
@@ -144,6 +144,13 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 	var sh Shape
 	suite.Require().NoError(suite.resolver.Resolve(&sh, di.WithName("theCircle")))
 	suite.Require().Equal(sh.GetArea(), 13)
+}
+
+func (suite *ContainerSuite) TestInstance() {
+	suite.Require().NoError(suite.container.Instance(newCircle(), di.DefaultBindName))
+
+	suite.Require().EqualError(suite.resolver.Call(func(s1 Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().NoError(suite.resolver.Call(func(s1 *Circle) { return }))
 }
 
 func (suite *ContainerSuite) TestFactory() {

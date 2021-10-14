@@ -58,7 +58,7 @@ type resolveOptions struct {
 }
 
 func newResolveOptions(opts []Option) (out resolveOptions) {
-	out.name = defaultBindName
+	out.name = DefaultBindName
 	for _, o := range opts {
 		out.Apply(o)
 	}

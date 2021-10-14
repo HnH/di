@@ -14,13 +14,18 @@ var (
 )
 
 // Singleton binds value(s) returned from constructor as a singleton objects of related types.
-func Singleton(resolver interface{}, opts ...Option) error {
-	return globalContainer.Singleton(resolver, opts...)
+func Singleton(constructor interface{}, opts ...Option) error {
+	return globalContainer.Singleton(constructor, opts...)
+}
+
+// Instance receives ready instance and bind it to it's REAL type, which means that declared abstract variable type (interface) is ignored
+func Instance(instance interface{}, name string) error {
+	return globalContainer.Instance(instance, name)
 }
 
 // Factory binds constructor as a factory method of related type.
-func Factory(resolver interface{}, opts ...Option) error {
-	return globalContainer.Factory(resolver, opts...)
+func Factory(constructor interface{}, opts ...Option) error {
+	return globalContainer.Factory(constructor, opts...)
 }
 
 // Reset deletes all the existing bindings and empties the container instance.
@@ -28,14 +33,19 @@ func Reset() {
 	globalContainer.Reset()
 }
 
+// With takes a list of ready instances and tries to use them in resolving scenarios
+func With(instances ...interface{}) Resolver {
+	return globalResolver.With(instances...)
+}
+
 // Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.
-func Call(receiver interface{}, opts ...Option) error {
-	return globalResolver.Call(receiver, opts...)
+func Call(function interface{}, opts ...Option) error {
+	return globalResolver.Call(function, opts...)
 }
 
 // Resolve takes a receiver and fills it with the related implementation.
-func Resolve(abstraction interface{}, opts ...Option) error {
-	return globalResolver.Resolve(abstraction, opts...)
+func Resolve(receiver interface{}, opts ...Option) error {
+	return globalResolver.Resolve(receiver, opts...)
 }
 
 // Fill takes a struct and resolves the fields with the tag `di:"..."`.

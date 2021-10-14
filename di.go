@@ -51,3 +51,7 @@ func Resolve(abstraction interface{}, opts ...Option) error {
 func Fill(receiver interface{}) error {
 	return container.Fill(receiver)
 }
+
+func isError(v reflect.Type) bool {
+	return v.Implements(reflect.TypeOf((*error)(nil)).Elem())
+}

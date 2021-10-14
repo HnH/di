@@ -35,12 +35,12 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 	}
 
 	// if resolver returns no useful values
-	if ref.NumOut() == 0 || ref.NumOut() == 1 && c.isError(ref.Out(0)) {
+	if ref.NumOut() == 0 || ref.NumOut() == 1 && isError(ref.Out(0)) {
 		return errors.New("di: the resolver must return useful values")
 	}
 
 	var numRealInstances = ref.NumOut()
-	if c.isError(ref.Out(numRealInstances - 1)) {
+	if isError(ref.Out(numRealInstances - 1)) {
 		numRealInstances--
 	}
 
@@ -55,13 +55,13 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 			return
 		}
 
-	case opts.factory && (ref.NumOut() == 2 && !c.isError(ref.Out(1)) || ref.NumOut() > 2):
+	case opts.factory && (ref.NumOut() == 2 && !isError(ref.Out(1)) || ref.NumOut() > 2):
 		return errors.New("di: factory resolvers must return exactly one value and optionally one error")
 	}
 
 	for i := 0; i < numRealInstances; i++ {
 		// we are not interested in returned errors
-		if c.isError(ref.Out(i)) {
+		if isError(ref.Out(i)) {
 			continue
 		}
 

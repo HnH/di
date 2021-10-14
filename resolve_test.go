@@ -18,6 +18,22 @@ func (suite *ContainerSuite) TestCallMulti() {
 	}))
 }
 
+func (suite *ContainerSuite) TestCallReturn() {
+	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+
+	var (
+		str string
+		db  Database
+	)
+
+	suite.Require().NoError(suite.container.Call(func(s Shape) (string, Database, error) {
+		return "mysql", &MySQL{}, nil
+	}, di.WithReturn(&str, &db)))
+
+	suite.Require().Equal("mysql", str)
+	suite.Require().IsType(&MySQL{}, db)
+}
+
 func (suite *ContainerSuite) TestCallNotAFunc() {
 	suite.Require().EqualError(suite.container.Call("STRING!"), "di: invalid function")
 }
@@ -25,6 +41,29 @@ func (suite *ContainerSuite) TestCallNotAFunc() {
 func (suite *ContainerSuite) TestCallUnboundArg() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
 	suite.Require().EqualError(suite.container.Call(func(s Shape, d Database) {}), "di: no binding found for: di_test.Database")
+}
+
+func (suite *ContainerSuite) TestCallReceiverNumMismatch() {
+	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+
+	var str string
+	suite.Require().EqualError(suite.container.Call(func(s Shape) (string, Database) {
+		return "mysql", &MySQL{}
+	}, di.WithReturn(&str)), "di: cannot assign 2 returned values to 1 receivers")
+
+	var err error
+	suite.Require().EqualError(suite.container.Call(func(s Shape) (string, error) {
+		return "mysql", nil
+	}, di.WithReturn(&str, &err)), "di: cannot assign 1 returned values to 2 receivers")
+}
+
+func (suite *ContainerSuite) TestCallReceiverTypeMismatch() {
+	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+
+	var str, db string
+	suite.Require().EqualError(suite.container.Call(func(s Shape) (string, Database) {
+		return "mysql", &MySQL{}
+	}, di.WithReturn(&str, &db)), "di: cannot assign returned value of type Database to string")
 }
 
 func (suite *ContainerSuite) TestCallReturnedError() {
@@ -46,12 +85,12 @@ func (suite *ContainerSuite) TestResolve() {
 }
 
 func (suite *ContainerSuite) TestResolveUnsupportedReceiver() {
-	suite.Require().EqualError(suite.container.Resolve("STRING!"), "di: invalid abstraction")
+	suite.Require().EqualError(suite.container.Resolve("STRING!"), "di: invalid receiver")
 }
 
 func (suite *ContainerSuite) TestResolveReceiverNotAPointer() {
 	var s Shape
-	suite.Require().EqualError(suite.container.Resolve(s), "di: invalid abstraction")
+	suite.Require().EqualError(suite.container.Resolve(s), "di: invalid receiver")
 }
 
 func (suite *ContainerSuite) TestResolveUnbound() {

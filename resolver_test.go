@@ -3,11 +3,38 @@ package di_test
 import (
 	"errors"
 	"reflect"
+	"testing"
 
 	"github.com/HnH/di"
+	"github.com/stretchr/testify/suite"
 )
 
-func (suite *ContainerSuite) TestCallMulti() {
+func TestResolverSuite(t *testing.T) {
+	suite.Run(t, new(ResolverSuite))
+}
+
+type ResolverSuite struct {
+	container di.Container
+	resolver  di.Resolver
+
+	suite.Suite
+}
+
+func (suite *ResolverSuite) SetupSuite() {
+	suite.container = di.NewContainer()
+	suite.resolver, _ = di.NewResolver(suite.container)
+}
+
+func (suite *ResolverSuite) TearDownTest() {
+	suite.container.Reset()
+}
+
+func (suite *ResolverSuite) TestConstructor() {
+	var _, err = di.NewResolver()
+	suite.Require().EqualError(err, "di: no containers provider")
+}
+
+func (suite *ResolverSuite) TestCallMulti() {
 	suite.Require().NoError(suite.container.Singleton(func() (Shape, Database, error) {
 		return &Rectangle{a: 777}, &MySQL{}, nil
 	}))
@@ -18,8 +45,8 @@ func (suite *ContainerSuite) TestCallMulti() {
 	}))
 }
 
-func (suite *ContainerSuite) TestCallReturn() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestCallReturn() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	var (
 		str string
@@ -34,17 +61,17 @@ func (suite *ContainerSuite) TestCallReturn() {
 	suite.Require().IsType(&MySQL{}, db)
 }
 
-func (suite *ContainerSuite) TestCallNotAFunc() {
+func (suite *ResolverSuite) TestCallNotAFunc() {
 	suite.Require().EqualError(suite.resolver.Call("STRING!"), "di: invalid function")
 }
 
-func (suite *ContainerSuite) TestCallUnboundArg() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestCallUnboundArg() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 	suite.Require().EqualError(suite.resolver.Call(func(s Shape, d Database) {}), "di: no binding found for: di_test.Database")
 }
 
-func (suite *ContainerSuite) TestCallReceiverNumMismatch() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestCallReceiverNumMismatch() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	var str string
 	suite.Require().EqualError(suite.resolver.Call(func(s Shape) (string, Database) {
@@ -57,8 +84,8 @@ func (suite *ContainerSuite) TestCallReceiverNumMismatch() {
 	}, di.WithReturn(&str, &err)), "di: cannot assign 1 returned values to 2 receivers")
 }
 
-func (suite *ContainerSuite) TestCallReceiverTypeMismatch() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestCallReceiverTypeMismatch() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	var str, db string
 	suite.Require().EqualError(suite.resolver.Call(func(s Shape) (string, Database) {
@@ -66,14 +93,14 @@ func (suite *ContainerSuite) TestCallReceiverTypeMismatch() {
 	}, di.WithReturn(&str, &db)), "di: cannot assign returned value of type Database to string")
 }
 
-func (suite *ContainerSuite) TestCallReturnedError() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestCallReturnedError() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 	suite.Require().EqualError(suite.resolver.Call(func(s Shape) (err error) { return errors.New("dummy error") }), "dummy error")
 }
 
-func (suite *ContainerSuite) TestResolve() {
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle))
-	suite.Require().NoError(suite.container.Singleton(suite.newMySQL))
+func (suite *ResolverSuite) TestResolve() {
+	suite.Require().NoError(suite.container.Singleton(newRectangle))
+	suite.Require().NoError(suite.container.Singleton(newMySQL))
 
 	var s Shape
 	suite.Require().NoError(suite.resolver.Resolve(&s))
@@ -84,21 +111,42 @@ func (suite *ContainerSuite) TestResolve() {
 	suite.Require().IsType(&MySQL{}, db)
 }
 
-func (suite *ContainerSuite) TestResolveUnsupportedReceiver() {
+func (suite *ResolverSuite) TestResolveMultiContainer() {
+	var (
+		localContainer   = di.NewContainer()
+		localResolver, _ = di.NewResolver(localContainer, suite.container)
+	)
+
+	suite.Require().NoError(suite.container.Singleton(newRectangle))
+	suite.Require().NoError(localContainer.Singleton(newMySQL))
+
+	var s Shape
+	suite.Require().NoError(suite.resolver.Resolve(&s))
+	suite.Require().IsType(&Rectangle{}, s)
+
+	var db Database
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Database")
+	suite.Require().Nil(db)
+
+	suite.Require().NoError(localResolver.Resolve(&db))
+	suite.Require().IsType(&MySQL{}, db)
+}
+
+func (suite *ResolverSuite) TestResolveUnsupportedReceiver() {
 	suite.Require().EqualError(suite.resolver.Resolve("STRING!"), "di: invalid receiver")
 }
 
-func (suite *ContainerSuite) TestResolveReceiverNotAPointer() {
+func (suite *ResolverSuite) TestResolveReceiverNotAPointer() {
 	var s Shape
 	suite.Require().EqualError(suite.resolver.Resolve(s), "di: invalid receiver")
 }
 
-func (suite *ContainerSuite) TestResolveUnbound() {
+func (suite *ResolverSuite) TestResolveUnbound() {
 	var s Shape
 	suite.Require().EqualError(suite.resolver.Resolve(&s), "di: no binding found for: di_test.Shape")
 }
 
-func (suite *ContainerSuite) TestResolveInvokeError() {
+func (suite *ResolverSuite) TestResolveInvokeError() {
 	suite.Require().NoError(suite.container.Factory(func() (Shape, error) {
 		return nil, errors.New("dummy error")
 	}))
@@ -107,10 +155,10 @@ func (suite *ContainerSuite) TestResolveInvokeError() {
 	suite.Require().EqualError(suite.resolver.Resolve(&s), "dummy error")
 }
 
-func (suite *ContainerSuite) TestFillStruct() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
-	suite.Require().NoError(suite.container.Singleton(suite.newMySQL))
+func (suite *ResolverSuite) TestFillStruct() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("R")))
+	suite.Require().NoError(suite.container.Singleton(newMySQL))
 
 	var target = struct {
 		S Shape    `di:"type"`
@@ -132,9 +180,9 @@ func (suite *ContainerSuite) TestFillStruct() {
 	suite.Require().Equal(target.y, 100)
 }
 
-func (suite *ContainerSuite) TestFillSlice() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle, di.WithName("circle")))
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("square")))
+func (suite *ResolverSuite) TestFillSlice() {
+	suite.Require().NoError(suite.container.Singleton(newCircle, di.WithName("circle")))
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("square")))
 
 	var shapes []Shape
 	suite.Require().NoError(suite.resolver.Fill(&shapes))
@@ -152,9 +200,9 @@ func (suite *ContainerSuite) TestFillSlice() {
 	suite.Require().True(ok)
 }
 
-func (suite *ContainerSuite) TestFillMap() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle, di.WithName("circle")))
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("square")))
+func (suite *ResolverSuite) TestFillMap() {
+	suite.Require().NoError(suite.container.Singleton(newCircle, di.WithName("circle")))
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("square")))
 
 	var shapes map[string]Shape
 	suite.Require().NoError(suite.resolver.Fill(&shapes))
@@ -169,23 +217,23 @@ func (suite *ContainerSuite) TestFillMap() {
 	suite.Require().IsType(&Rectangle{}, shapes["square"])
 }
 
-func (suite *ContainerSuite) TestFillReceiverInvalid() {
+func (suite *ResolverSuite) TestFillReceiverInvalid() {
 	var target = 0
 	suite.Require().EqualError(suite.resolver.Fill(&target), "di: invalid receiver")
 }
 
-func (suite *ContainerSuite) TestFillReceiverNil() {
+func (suite *ResolverSuite) TestFillReceiverNil() {
 	var target Shape
 	suite.Require().EqualError(suite.resolver.Fill(target), "di: invalid receiver")
 }
 
-func (suite *ContainerSuite) TestFillReceiverNotAPointer() {
+func (suite *ResolverSuite) TestFillReceiverNotAPointer() {
 	var db MySQL
 	suite.Require().EqualError(suite.resolver.Fill(db), "di: receiver is not a pointer")
 }
 
-func (suite *ContainerSuite) TestFillInvalidName() {
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
+func (suite *ResolverSuite) TestFillInvalidName() {
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("R")))
 	var target = struct {
 		S Shape `di:"name"`
 	}{}
@@ -193,8 +241,8 @@ func (suite *ContainerSuite) TestFillInvalidName() {
 	suite.Require().EqualError(suite.resolver.Fill(&target), "di: no binding found for: di_test.Shape")
 }
 
-func (suite *ContainerSuite) TestFillInvalidTag() {
-	suite.Require().NoError(suite.container.Singleton(suite.newRectangle, di.WithName("R")))
+func (suite *ResolverSuite) TestFillInvalidTag() {
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("R")))
 	var target = struct {
 		S Shape `di:"invalid"`
 	}{}
@@ -202,19 +250,19 @@ func (suite *ContainerSuite) TestFillInvalidTag() {
 	suite.Require().EqualError(suite.resolver.Fill(&target), "di: S has an invalid struct tag")
 }
 
-func (suite *ContainerSuite) TestFillSliceUnbound() {
+func (suite *ResolverSuite) TestFillSliceUnbound() {
 	var list []Shape
 	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
 }
 
-func (suite *ContainerSuite) TestFillInvalidMap() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+func (suite *ResolverSuite) TestFillInvalidMap() {
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	var list = map[int]Shape{}
 	suite.Require().EqualError(suite.resolver.Fill(&list), "di: invalid receiver")
 }
 
-func (suite *ContainerSuite) TestFillMapUnbound() {
+func (suite *ResolverSuite) TestFillMapUnbound() {
 	var list map[string]Shape
 	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
 }

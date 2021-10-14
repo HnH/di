@@ -6,50 +6,42 @@ import (
 	"reflect"
 )
 
-// Container holds all of the declared bindings
-type Container map[reflect.Type]map[string]binding
+var (
+	// globalContainer is the global repository for bindings
+	globalContainer = NewContainer().(*container)
+	// globalResolver is the resolver against globalContainer
+	globalResolver = globalContainer.getResolver()
+)
 
-// New creates a new instance of the Container
-func New() Container {
-	return make(Container)
-}
-
-// container is the global repository of bindings
-var container = New()
-
-// Singleton binds an abstraction to concrete for further singleton resolves.
-// It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
-// The resolver function can have arguments of abstraction that have been declared in the Container already.
+// Singleton binds value(s) returned from constructor as a singleton objects of related types.
 func Singleton(resolver interface{}, opts ...Option) error {
-	return container.Singleton(resolver, opts...)
+	return globalContainer.Singleton(resolver, opts...)
 }
 
-// Factory binds an abstraction to concrete for further transient resolves.
-// It takes a resolver function that returns the concrete, and its return type matches the abstraction (interface).
-// The resolver function can have arguments of abstraction that have been declared in the Container already.
+// Factory binds constructor as a factory method of related type.
 func Factory(resolver interface{}, opts ...Option) error {
-	return container.Factory(resolver, opts...)
+	return globalContainer.Factory(resolver, opts...)
 }
 
 // Reset deletes all the existing bindings and empties the container instance.
 func Reset() {
-	container.Reset()
+	globalContainer.Reset()
 }
 
-// Call takes a function (receiver) with one or more arguments of the abstractions (interfaces).
-// It invokes the function (receiver) and passes the related implementations.
+// Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.
 func Call(receiver interface{}, opts ...Option) error {
-	return container.getResolver().Call(receiver, opts...)
+	return globalResolver.Call(receiver, opts...)
 }
 
-// Resolve takes an abstraction (interface reference) and fills it with the related implementation.
+// Resolve takes a receiver and fills it with the related implementation.
 func Resolve(abstraction interface{}, opts ...Option) error {
-	return container.getResolver().Resolve(abstraction, opts...)
+	return globalResolver.Resolve(abstraction, opts...)
 }
 
-// Fill takes a struct and resolves the fields with the tag `container:"inject"`
+// Fill takes a struct and resolves the fields with the tag `di:"..."`.
+// Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
 func Fill(receiver interface{}) error {
-	return container.getResolver().Fill(receiver)
+	return globalResolver.Fill(receiver)
 }
 
 func isError(v reflect.Type) bool {

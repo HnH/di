@@ -2,12 +2,34 @@ package di_test
 
 import (
 	"errors"
+	"testing"
 
 	"github.com/HnH/di"
+	"github.com/stretchr/testify/suite"
 )
 
+func TestContainerSuite(t *testing.T) {
+	suite.Run(t, new(ContainerSuite))
+}
+
+type ContainerSuite struct {
+	container di.Container
+	resolver  di.Resolver
+
+	suite.Suite
+}
+
+func (suite *ContainerSuite) SetupSuite() {
+	suite.container = di.NewContainer()
+	suite.resolver, _ = di.NewResolver(suite.container)
+}
+
+func (suite *ContainerSuite) TearDownTest() {
+	suite.container.Reset()
+}
+
 func (suite *ContainerSuite) TestSingleton() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	suite.Require().NoError(suite.resolver.Call(func(s1 Shape) {
 		s1.SetArea(666)
@@ -78,7 +100,7 @@ func (suite *ContainerSuite) TestSingletonMultiNamingCountMismatch() {
 		suite.container.Singleton(func() (Shape, Database, error) {
 			return &Rectangle{a: 777}, &MySQL{}, nil
 		}, di.WithName("kek", "bek", "dek")),
-		"di: the resolver that returns multiple values must be called with either one name or number of names equal to number of values",
+		"di: the constructor that returns multiple values must be called with either one name or number of names equal to number of values",
 	)
 }
 
@@ -89,19 +111,19 @@ func (suite *ContainerSuite) TestSingletonBindError() {
 }
 
 func (suite *ContainerSuite) TestSingletonResolverNotAFunc() {
-	suite.Require().EqualError(suite.container.Singleton("STRING!"), "di: the resolver must be a function")
+	suite.Require().EqualError(suite.container.Singleton("STRING!"), "di: the constructor must be a function")
 }
 
 func (suite *ContainerSuite) TestSingletonResolverNumUsefulValues() {
-	suite.Require().EqualError(suite.container.Factory(func() {}), "di: the resolver must return useful values")
+	suite.Require().EqualError(suite.container.Factory(func() {}), "di: the constructor must return useful values")
 
 	suite.Require().EqualError(suite.container.Factory(func() error {
 		return errors.New("dummy error")
-	}), "di: the resolver must return useful values")
+	}), "di: the constructor must return useful values")
 }
 
 func (suite *ContainerSuite) TestSingletonResolvableArgs() {
-	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
+	suite.Require().NoError(suite.container.Singleton(newCircle))
 	suite.Require().NoError(suite.container.Singleton(func(s Shape) Database {
 		suite.Require().Equal(s.GetArea(), 100500)
 		return &MySQL{}
@@ -125,7 +147,7 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 }
 
 func (suite *ContainerSuite) TestFactory() {
-	suite.Require().NoError(suite.container.Factory(suite.newCircle))
+	suite.Require().NoError(suite.container.Factory(newCircle))
 
 	suite.Require().NoError(suite.resolver.Call(func(s1 Shape) {
 		s1.SetArea(13)
@@ -137,7 +159,7 @@ func (suite *ContainerSuite) TestFactory() {
 }
 
 func (suite *ContainerSuite) TestFactoryNamed() {
-	suite.Require().NoError(suite.container.Factory(suite.newCircle, di.WithName("theCircle")))
+	suite.Require().NoError(suite.container.Factory(newCircle, di.WithName("theCircle")))
 
 	var sh Shape
 	suite.Require().NoError(suite.resolver.Resolve(&sh, di.WithName("theCircle")))
@@ -156,4 +178,17 @@ func (suite *ContainerSuite) TestFactoryMultiError() {
 	suite.Require().NoError(suite.container.Factory(func() (Shape, error) {
 		return nil, errors.New("dummy error")
 	}))
+}
+
+func (suite *ContainerSuite) TestCoverageBump() {
+	suite.Require().NoError(di.Singleton(newCircle))
+	suite.Require().NoError(di.Factory(newCircle))
+	suite.Require().NoError(di.Call(func(s Shape) { return }))
+
+	var target Shape
+	suite.Require().NoError(di.Resolve(&target))
+
+	var list []Shape
+	suite.Require().NoError(di.Fill(&list))
+	di.Reset()
 }

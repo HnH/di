@@ -7,20 +7,63 @@ import (
 	"unsafe"
 )
 
+func NewResolver(containers ...Container) (Resolver, error) {
+	if len(containers) == 0 {
+		return Resolver{}, errors.New("di: no containers provider")
+	}
+
+	return Resolver{
+		list: containers,
+	}, nil
+}
+
+type Resolver struct {
+	list []Container
+}
+
+func (self *Resolver) getBinding(abstraction reflect.Type, name string) (bnd binding, err error) {
+	for _, cnt := range self.list {
+		if bnd, err = cnt.getBinding(abstraction, name); err == nil {
+			break
+		}
+	}
+
+	return
+}
+
+func (self *Resolver) resolveBindingInstance(bnd binding) (interface{}, error) {
+	// Is binding already instantiated?
+	if bnd.instance != nil {
+		return bnd.instance, nil
+	}
+
+	// Or we need to call a factory method?
+	var out, err = self.invoke(bnd.factory)
+	if err != nil {
+		return nil, err
+	}
+
+	return out[0].Interface(), nil
+}
+
+func (self *Resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
+	var bnd, err = self.getBinding(abstraction, name)
+	if err != nil {
+		return nil, err
+	}
+
+	return self.resolveBindingInstance(bnd)
+}
+
 // arguments returns container-resolved arguments of a function.
-func (c Container) arguments(function interface{}) ([]reflect.Value, error) {
+func (self *Resolver) arguments(function interface{}) ([]reflect.Value, error) {
 	var (
 		ref  = reflect.TypeOf(function)
 		args = make([]reflect.Value, ref.NumIn())
 	)
 
 	for i := 0; i < ref.NumIn(); i++ {
-		var bnd, ok = c[ref.In(i)][defaultBindName]
-		if !ok {
-			return nil, fmt.Errorf("di: no binding found for: %s", ref.In(i).String())
-		}
-
-		var instance, err = bnd.resolve(c)
+		var instance, err = self.resolveBinding(ref.In(i), defaultBindName)
 		if err != nil {
 			return nil, err
 		}
@@ -32,9 +75,9 @@ func (c Container) arguments(function interface{}) ([]reflect.Value, error) {
 }
 
 // invoke calls a function and returns the yielded values.
-func (c Container) invoke(function interface{}) (out []reflect.Value, err error) {
+func (self *Resolver) invoke(function interface{}) (out []reflect.Value, err error) {
 	var args []reflect.Value
-	if args, err = c.arguments(function); err != nil {
+	if args, err = self.arguments(function); err != nil {
 		return
 	}
 
@@ -49,7 +92,7 @@ func (c Container) invoke(function interface{}) (out []reflect.Value, err error)
 
 // Call takes a function (receiver) with one or more arguments of the abstractions (interfaces).
 // It invokes the function (receiver) and passes the related implementations.
-func (c Container) Call(function interface{}, opts ...Option) error {
+func (self *Resolver) Call(function interface{}, opts ...Option) error {
 	var ref = reflect.TypeOf(function)
 	if ref == nil || ref.Kind() != reflect.Func {
 		return errors.New("di: invalid function")
@@ -66,7 +109,7 @@ func (c Container) Call(function interface{}, opts ...Option) error {
 		return fmt.Errorf("di: cannot assign %d returned values to %d receivers", ref.NumOut()-returnsAnError, len(options.returns))
 	}
 
-	var args, err = c.arguments(function)
+	var args, err = self.arguments(function)
 	if err != nil {
 		return err
 	}
@@ -90,34 +133,29 @@ func (c Container) Call(function interface{}, opts ...Option) error {
 }
 
 // Resolve takes an abstraction (interface reference) and fills it with the related implementation.
-func (c Container) Resolve(receiver interface{}, opts ...Option) error {
+func (self *Resolver) Resolve(receiver interface{}, opts ...Option) error {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil || ref.Kind() != reflect.Ptr {
 		return errors.New("di: invalid receiver")
 	}
 
 	var (
-		options = newResolveOptions(opts)
-		bnd, ok = c[ref.Elem()][options.name]
+		options   = newResolveOptions(opts)
+		inst, err = self.resolveBinding(ref.Elem(), options.name)
 	)
 
-	if !ok {
-		return fmt.Errorf("di: no binding found for: %s", ref.Elem().String())
-	}
-
-	var instance, err = bnd.resolve(c)
 	if err != nil {
 		return err
 	}
 
-	reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(instance))
+	reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(inst))
 
 	return nil
 }
 
 // Fill takes a struct and resolves the fields with the tag `container:"inject"`.
 // Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
-func (c Container) Fill(receiver interface{}) error {
+func (self *Resolver) Fill(receiver interface{}) error {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil {
 		return errors.New("di: invalid receiver")
@@ -129,23 +167,23 @@ func (c Container) Fill(receiver interface{}) error {
 
 	switch ref.Elem().Kind() {
 	case reflect.Struct:
-		return c.fillStruct(receiver)
+		return self.fillStruct(receiver)
 
 	case reflect.Slice:
-		return c.fillSlice(receiver)
+		return self.fillSlice(receiver)
 
 	case reflect.Map:
 		if ref.Elem().Key().Name() != "string" {
 			break
 		}
 
-		return c.fillMap(receiver)
+		return self.fillMap(receiver)
 	}
 
 	return errors.New("di: invalid receiver")
 }
 
-func (c Container) fillStruct(receiver interface{}) error {
+func (self *Resolver) fillStruct(receiver interface{}) error {
 	var elem = reflect.ValueOf(receiver).Elem()
 	for i := 0; i < elem.NumField(); i++ {
 		var tag, ok = elem.Type().Field(i).Tag.Lookup("di")
@@ -165,12 +203,7 @@ func (c Container) fillStruct(receiver interface{}) error {
 			return fmt.Errorf("di: %v has an invalid struct tag", elem.Type().Field(i).Name)
 		}
 
-		var bnd binding
-		if bnd, ok = c[elem.Field(i).Type()][name]; !ok {
-			return fmt.Errorf("di: no binding found for: %v", elem.Field(i).Type().Name())
-		}
-
-		var instance, err = bnd.resolve(c)
+		var instance, err = self.resolveBinding(elem.Field(i).Type(), name)
 		if err != nil {
 			return err
 		}
@@ -182,20 +215,30 @@ func (c Container) fillStruct(receiver interface{}) error {
 	return nil
 }
 
-func (c Container) fillSlice(receiver interface{}) error {
-	var elem = reflect.TypeOf(receiver).Elem()
-	if _, ok := c[elem.Elem()]; !ok {
-		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
-	}
+func (self *Resolver) fillSlice(receiver interface{}) error {
+	var (
+		elem   = reflect.TypeOf(receiver).Elem()
+		result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, 3)
+	)
 
-	var result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, len(c[elem.Elem()]))
-	for _, bnd := range c[elem.Elem()] {
-		var instance, err = bnd.resolve(c)
+	for _, cnt := range self.list {
+		var bindings, err = cnt.getAllBindings(elem.Elem())
 		if err != nil {
-			return err
+			continue
 		}
 
-		result = reflect.Append(result, reflect.ValueOf(instance))
+		for _, bnd := range bindings {
+			var instance interface{}
+			if instance, err = self.resolveBindingInstance(bnd); err != nil {
+				return err
+			}
+
+			result = reflect.Append(result, reflect.ValueOf(instance))
+		}
+	}
+
+	if result.Len() == 0 {
+		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
 	}
 
 	reflect.ValueOf(receiver).Elem().Set(result)
@@ -203,20 +246,30 @@ func (c Container) fillSlice(receiver interface{}) error {
 	return nil
 }
 
-func (c Container) fillMap(receiver interface{}) error {
-	var elem = reflect.TypeOf(receiver).Elem()
-	if _, ok := c[elem.Elem()]; !ok {
-		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
-	}
+func (self *Resolver) fillMap(receiver interface{}) error {
+	var (
+		elem   = reflect.TypeOf(receiver).Elem()
+		result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), 3)
+	)
 
-	var result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), len(c[elem.Elem()]))
-	for name, bnd := range c[elem.Elem()] {
-		var instance, err = bnd.resolve(c)
+	for _, cnt := range self.list {
+		var bindings, err = cnt.getAllBindings(elem.Elem())
 		if err != nil {
-			return err
+			continue
 		}
 
-		result.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(instance))
+		for name, bnd := range bindings {
+			var instance interface{}
+			if instance, err = self.resolveBindingInstance(bnd); err != nil {
+				return err
+			}
+
+			result.SetMapIndex(reflect.ValueOf(name), reflect.ValueOf(instance))
+		}
+	}
+
+	if result.Len() == 0 {
+		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
 	}
 
 	reflect.ValueOf(receiver).Elem().Set(result)

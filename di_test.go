@@ -9,12 +9,14 @@ import (
 
 type ContainerSuite struct {
 	container di.Container
+	resolver  di.Resolver
 
 	suite.Suite
 }
 
 func (suite *ContainerSuite) SetupSuite() {
 	suite.container = di.New()
+	suite.resolver, _ = di.NewResolver(suite.container)
 }
 
 func (suite *ContainerSuite) TearDownTest() {

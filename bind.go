@@ -2,6 +2,7 @@ package di
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 )
 
@@ -9,22 +10,38 @@ const defaultBindName = "default"
 
 // binding holds a binding resolver and an instance (for singleton bindings).
 type binding struct {
-	resolver interface{} // resolver function that creates the appropriate implementation of the related abstraction
+	factory  interface{} // factory method that creates the appropriate implementation of the abstraction
 	instance interface{} // instance stored for reusing in singleton bindings
 }
 
-// resolve creates an appropriate implementation of the related abstraction
-func (b binding) resolve(c Container) (interface{}, error) {
-	if b.instance != nil {
-		return b.instance, nil
+func (c Container) getAllBindings(abstraction reflect.Type) (bnds map[string]binding, err error) {
+	var ok bool
+	if bnds, ok = c[abstraction]; !ok {
+		return bnds, fmt.Errorf("di: no binding found for: %s", abstraction.String())
 	}
 
-	var out, err = c.invoke(b.resolver)
-	if err != nil {
-		return nil, err
+	return
+}
+
+func (c Container) getBinding(abstraction reflect.Type, name string) (bnd binding, err error) {
+	var ok bool
+	if _, ok = c[abstraction]; !ok {
+		return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
 	}
 
-	return out[0].Interface(), nil
+	if bnd, ok = c[abstraction][name]; !ok {
+		return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+	}
+
+	return
+}
+
+func (c Container) getResolver() *Resolver {
+	return &Resolver{
+		list: []Container{
+			c,
+		},
+	}
 }
 
 // bind creates a binding for an abstraction
@@ -51,7 +68,7 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 			return errors.New("di: the resolver that returns multiple values must be called with either one name or number of names equal to number of values")
 		}
 
-		if instances, err = c.invoke(resolver); err != nil {
+		if instances, err = c.getResolver().invoke(resolver); err != nil {
 			return
 		}
 
@@ -77,7 +94,7 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 
 		// Factory method
 		if opts.factory {
-			c[ref.Out(i)][name] = binding{resolver: resolver}
+			c[ref.Out(i)][name] = binding{factory: resolver}
 			continue
 		}
 
@@ -88,13 +105,13 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 				name = opts.names[i]
 			}
 
-			c[ref.Out(i)][name] = binding{resolver: resolver, instance: instances[i].Interface()}
+			c[ref.Out(i)][name] = binding{instance: instances[i].Interface()}
 			continue
 		}
 
 		// if only one instance is returned from resolver - bind it under all provided names
 		for _, name = range opts.names {
-			c[ref.Out(i)][name] = binding{resolver: resolver, instance: instances[i].Interface()}
+			c[ref.Out(i)][name] = binding{instance: instances[i].Interface()}
 		}
 	}
 

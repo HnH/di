@@ -38,18 +38,18 @@ func Reset() {
 
 // Call takes a function (receiver) with one or more arguments of the abstractions (interfaces).
 // It invokes the function (receiver) and passes the related implementations.
-func Call(receiver interface{}) error {
-	return container.Call(receiver)
+func Call(receiver interface{}, opts ...Option) error {
+	return container.getResolver().Call(receiver, opts...)
 }
 
 // Resolve takes an abstraction (interface reference) and fills it with the related implementation.
 func Resolve(abstraction interface{}, opts ...Option) error {
-	return container.Resolve(abstraction, opts...)
+	return container.getResolver().Resolve(abstraction, opts...)
 }
 
 // Fill takes a struct and resolves the fields with the tag `container:"inject"`
 func Fill(receiver interface{}) error {
-	return container.Fill(receiver)
+	return container.getResolver().Fill(receiver)
 }
 
 func isError(v reflect.Type) bool {

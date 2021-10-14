@@ -9,11 +9,11 @@ import (
 func (suite *ContainerSuite) TestSingleton() {
 	suite.Require().NoError(suite.container.Singleton(suite.newCircle))
 
-	suite.Require().NoError(suite.container.Call(func(s1 Shape) {
+	suite.Require().NoError(suite.resolver.Call(func(s1 Shape) {
 		s1.SetArea(666)
 	}))
 
-	suite.Require().NoError(suite.container.Call(func(s2 Shape) {
+	suite.Require().NoError(suite.resolver.Call(func(s2 Shape) {
 		suite.Require().Equal(s2.GetArea(), 666)
 	}))
 }
@@ -24,17 +24,17 @@ func (suite *ContainerSuite) TestSingletonAlias() {
 	}, di.WithName("kek", "bek")))
 
 	var s Shape
-	suite.Require().NoError(suite.container.Resolve(&s, di.WithName("kek")))
+	suite.Require().NoError(suite.resolver.Resolve(&s, di.WithName("kek")))
 	suite.Require().IsType(&Rectangle{}, s)
 	suite.Require().Equal(4444, s.GetArea())
 
 	var s2 Shape
-	suite.Require().NoError(suite.container.Resolve(&s2, di.WithName("bek")))
+	suite.Require().NoError(suite.resolver.Resolve(&s2, di.WithName("bek")))
 	suite.Require().IsType(&Rectangle{}, s2)
 	suite.Require().Equal(4444, s2.GetArea())
 
 	var s3 Shape
-	suite.Require().EqualError(suite.container.Resolve(&s3), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Resolve(&s3), "di: no binding found for: di_test.Shape")
 }
 
 func (suite *ContainerSuite) TestSingletonMulti() {
@@ -43,16 +43,16 @@ func (suite *ContainerSuite) TestSingletonMulti() {
 	}))
 
 	var s Shape
-	suite.Require().NoError(suite.container.Resolve(&s))
+	suite.Require().NoError(suite.resolver.Resolve(&s))
 	suite.Require().IsType(&Rectangle{}, s)
 	suite.Require().Equal(777, s.GetArea())
 
 	var db Database
-	suite.Require().NoError(suite.container.Resolve(&db))
+	suite.Require().NoError(suite.resolver.Resolve(&db))
 	suite.Require().IsType(&MySQL{}, db)
 
 	var err error
-	suite.Require().EqualError(suite.container.Resolve(&err), "di: no binding found for: error")
+	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
 }
 
 func (suite *ContainerSuite) TestSingletonMultiNaming() {
@@ -61,16 +61,16 @@ func (suite *ContainerSuite) TestSingletonMultiNaming() {
 	}, di.WithName("kek", "bek")))
 
 	var s Shape
-	suite.Require().NoError(suite.container.Resolve(&s, di.WithName("kek")))
+	suite.Require().NoError(suite.resolver.Resolve(&s, di.WithName("kek")))
 	suite.Require().IsType(&Rectangle{}, s)
 	suite.Require().Equal(777, s.GetArea())
 
 	var db Database
-	suite.Require().NoError(suite.container.Resolve(&db, di.WithName("bek")))
+	suite.Require().NoError(suite.resolver.Resolve(&db, di.WithName("bek")))
 	suite.Require().IsType(&MySQL{}, db)
 
 	var err error
-	suite.Require().EqualError(suite.container.Resolve(&err), "di: no binding found for: error")
+	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
 }
 
 func (suite *ContainerSuite) TestSingletonMultiNamingCountMismatch() {
@@ -120,18 +120,18 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 	}, di.WithName("theCircle")))
 
 	var sh Shape
-	suite.Require().NoError(suite.container.Resolve(&sh, di.WithName("theCircle")))
+	suite.Require().NoError(suite.resolver.Resolve(&sh, di.WithName("theCircle")))
 	suite.Require().Equal(sh.GetArea(), 13)
 }
 
 func (suite *ContainerSuite) TestFactory() {
 	suite.Require().NoError(suite.container.Factory(suite.newCircle))
 
-	suite.Require().NoError(suite.container.Call(func(s1 Shape) {
+	suite.Require().NoError(suite.resolver.Call(func(s1 Shape) {
 		s1.SetArea(13)
 	}))
 
-	suite.Require().NoError(suite.container.Call(func(s2 Shape) {
+	suite.Require().NoError(suite.resolver.Call(func(s2 Shape) {
 		suite.Require().Equal(s2.GetArea(), 100500)
 	}))
 }
@@ -140,7 +140,7 @@ func (suite *ContainerSuite) TestFactoryNamed() {
 	suite.Require().NoError(suite.container.Factory(suite.newCircle, di.WithName("theCircle")))
 
 	var sh Shape
-	suite.Require().NoError(suite.container.Resolve(&sh, di.WithName("theCircle")))
+	suite.Require().NoError(suite.resolver.Resolve(&sh, di.WithName("theCircle")))
 	suite.Require().Equal(sh.GetArea(), 100500)
 }
 

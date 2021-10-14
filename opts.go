@@ -10,10 +10,22 @@ type NamingOption interface {
 	SetName(...string)
 }
 
+type ReturnOption interface {
+	SetReturn(...interface{})
+}
+
 func WithName(names ...string) Option {
 	return func(o Options) {
 		if opt, ok := o.(NamingOption); ok {
 			opt.SetName(names...)
+		}
+	}
+}
+
+func WithReturn(returns ...interface{}) Option {
+	return func(o Options) {
+		if opt, ok := o.(ReturnOption); ok {
+			opt.SetReturn(returns...)
 		}
 	}
 }
@@ -60,4 +72,25 @@ func (self *resolveOptions) Apply(opt Option) {
 
 func (self *resolveOptions) SetName(names ...string) {
 	self.name = names[0]
+}
+
+// options for resolving abstractions
+type callOptions struct {
+	returns []interface{}
+}
+
+func newCallOptions(opts []Option) (out callOptions) {
+	for _, o := range opts {
+		out.Apply(o)
+	}
+
+	return
+}
+
+func (self *callOptions) Apply(opt Option) {
+	opt(self)
+}
+
+func (self *callOptions) SetReturn(returns ...interface{}) {
+	self.returns = returns
 }

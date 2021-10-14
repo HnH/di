@@ -17,7 +17,7 @@ func (c Container) arguments(function interface{}) ([]reflect.Value, error) {
 	for i := 0; i < ref.NumIn(); i++ {
 		var bnd, ok = c[ref.In(i)][defaultBindName]
 		if !ok {
-			return nil, errors.New("container: no binding found for: " + ref.In(i).String())
+			return nil, errors.New("di: no binding found for: " + ref.In(i).String())
 		}
 
 		var instance, err = bnd.resolve(c)
@@ -56,7 +56,7 @@ func (c Container) isError(v reflect.Type) bool {
 func (c Container) Call(function interface{}) error {
 	var receiverType = reflect.TypeOf(function)
 	if receiverType == nil || receiverType.Kind() != reflect.Func {
-		return errors.New("container: invalid function")
+		return errors.New("di: invalid function")
 	}
 
 	var args, err = c.arguments(function)
@@ -77,11 +77,11 @@ func (c Container) Call(function interface{}) error {
 func (c Container) Resolve(abstraction interface{}, opts ...Option) error {
 	var receiverType = reflect.TypeOf(abstraction)
 	if receiverType == nil {
-		return errors.New("container: invalid abstraction")
+		return errors.New("di: invalid abstraction")
 	}
 
 	if receiverType.Kind() != reflect.Ptr {
-		return errors.New("container: invalid abstraction")
+		return errors.New("di: invalid abstraction")
 	}
 
 	var (
@@ -90,7 +90,7 @@ func (c Container) Resolve(abstraction interface{}, opts ...Option) error {
 	)
 
 	if !ok {
-		return fmt.Errorf("container: no binding found for: %s", receiverType.Elem().String())
+		return fmt.Errorf("di: no binding found for: %s", receiverType.Elem().String())
 	}
 
 	var instance, err = bnd.resolve(c)
@@ -108,11 +108,11 @@ func (c Container) Resolve(abstraction interface{}, opts ...Option) error {
 func (c Container) Fill(receiver interface{}) error {
 	var receiverType = reflect.TypeOf(receiver)
 	if receiverType == nil {
-		return errors.New("container: invalid receiver")
+		return errors.New("di: invalid receiver")
 	}
 
 	if receiverType.Kind() != reflect.Ptr {
-		return errors.New("container: receiver is not a pointer")
+		return errors.New("di: receiver is not a pointer")
 	}
 
 	switch receiverType.Elem().Kind() {
@@ -130,13 +130,13 @@ func (c Container) Fill(receiver interface{}) error {
 		return c.fillMap(receiver)
 	}
 
-	return errors.New("container: invalid receiver")
+	return errors.New("di: invalid receiver")
 }
 
 func (c Container) fillStruct(receiver interface{}) error {
 	var elem = reflect.ValueOf(receiver).Elem()
 	for i := 0; i < elem.NumField(); i++ {
-		var tag, ok = elem.Type().Field(i).Tag.Lookup("container")
+		var tag, ok = elem.Type().Field(i).Tag.Lookup("di")
 		if !ok {
 			continue
 		}
@@ -150,12 +150,12 @@ func (c Container) fillStruct(receiver interface{}) error {
 			name = elem.Type().Field(i).Name
 
 		default:
-			return fmt.Errorf("container: %v has an invalid struct tag", elem.Type().Field(i).Name)
+			return fmt.Errorf("di: %v has an invalid struct tag", elem.Type().Field(i).Name)
 		}
 
 		var bnd binding
 		if bnd, ok = c[elem.Field(i).Type()][name]; !ok {
-			return fmt.Errorf("container: no binding found for: %v", elem.Field(i).Type().Name())
+			return fmt.Errorf("di: no binding found for: %v", elem.Field(i).Type().Name())
 		}
 
 		var instance, err = bnd.resolve(c)
@@ -173,7 +173,7 @@ func (c Container) fillStruct(receiver interface{}) error {
 func (c Container) fillSlice(receiver interface{}) error {
 	var elem = reflect.TypeOf(receiver).Elem()
 	if _, ok := c[elem.Elem()]; !ok {
-		return fmt.Errorf("container: no binding found for: %v", elem.Elem().String())
+		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
 	}
 
 	var result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, len(c[elem.Elem()]))
@@ -194,7 +194,7 @@ func (c Container) fillSlice(receiver interface{}) error {
 func (c Container) fillMap(receiver interface{}) error {
 	var elem = reflect.TypeOf(receiver).Elem()
 	if _, ok := c[elem.Elem()]; !ok {
-		return fmt.Errorf("container: no binding found for: %v", elem.Elem().String())
+		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
 	}
 
 	var result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), len(c[elem.Elem()]))

@@ -31,12 +31,12 @@ func (b binding) resolve(c Container) (interface{}, error) {
 func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 	var ref = reflect.TypeOf(resolver)
 	if ref.Kind() != reflect.Func {
-		return errors.New("container: the resolver must be a function")
+		return errors.New("di: the resolver must be a function")
 	}
 
 	// if resolver returns no useful values
 	if ref.NumOut() == 0 || ref.NumOut() == 1 && c.isError(ref.Out(0)) {
-		return errors.New("container: the resolver must return useful values")
+		return errors.New("di: the resolver must return useful values")
 	}
 
 	var numRealInstances = ref.NumOut()
@@ -48,7 +48,7 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 	switch {
 	case !opts.factory:
 		if numRealInstances > 1 && len(opts.names) > 1 && numRealInstances != len(opts.names) {
-			return errors.New("container: the resolver that returns multiple values must be called with either one name or number of names equal to number of values")
+			return errors.New("di: the resolver that returns multiple values must be called with either one name or number of names equal to number of values")
 		}
 
 		if instances, err = c.invoke(resolver); err != nil {
@@ -56,7 +56,7 @@ func (c Container) bind(resolver interface{}, opts bindOptions) (err error) {
 		}
 
 	case opts.factory && (ref.NumOut() == 2 && !c.isError(ref.Out(1)) || ref.NumOut() > 2):
-		return errors.New("container: factory resolvers must return exactly one value and optionally one error")
+		return errors.New("di: factory resolvers must return exactly one value and optionally one error")
 	}
 
 	for i := 0; i < numRealInstances; i++ {

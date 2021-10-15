@@ -1,5 +1,10 @@
-// Package di is a lightweight yet powerful IoC container for Go projects.
-// It provides an easy-to-use interface and performance-in-mind container to be your ultimate requirement.
+// Package di is a dependency injection library that is focused on clean API and flexibility.
+// DI has two types of top-level abstractions: Container and Resolver.
+// First one is responsible for accepting constructors and implementations and creating abstraction bindings out of them.
+// Second implements different implementation resolution scenarios against one or more Containers.
+//
+// Initially this library was heavily inspired by GoLobby Container (https://github.com/golobby/container) but since then
+// had a lot of backwards incompatible changes in structure, functionality and API.
 package di
 
 import (
@@ -18,14 +23,14 @@ func Singleton(constructor interface{}, opts ...Option) error {
 	return globalContainer.Singleton(constructor, opts...)
 }
 
-// Instance receives ready instance and bind it to it's REAL type, which means that declared abstract variable type (interface) is ignored
-func Instance(instance interface{}, name string) error {
-	return globalContainer.Instance(instance, name)
-}
-
 // Factory binds constructor as a factory method of related type.
 func Factory(constructor interface{}, opts ...Option) error {
 	return globalContainer.Factory(constructor, opts...)
+}
+
+// Implementation receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored
+func Implementation(implementation interface{}, opts ...Option) error {
+	return globalContainer.Implementation(implementation, opts...)
 }
 
 // Reset deletes all the existing bindings and empties the container instance.
@@ -33,9 +38,9 @@ func Reset() {
 	globalContainer.Reset()
 }
 
-// With takes a list of ready instances and tries to use them in resolving scenarios
-func With(instances ...interface{}) Resolver {
-	return globalResolver.With(instances...)
+// With takes a list of instantiated implementations and tries to use them in resolving scenarios
+func With(implementations ...interface{}) Resolver {
+	return globalResolver.With(implementations...)
 }
 
 // Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.

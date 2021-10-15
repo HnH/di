@@ -65,6 +65,14 @@ func (suite *ResolverSuite) TestCallWith() {
 	suite.Require().NoError(suite.resolver.With(db).Call(func(s Shape, db Database) { return }))
 }
 
+func (suite *ResolverSuite) TestCallImplementationWithDiff() {
+	var circle = newCircle()
+	suite.Require().NoError(di.Implementation(circle))
+
+	suite.Require().EqualError(di.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().NoError(di.With(circle).Call(func(s Shape) { return }))
+}
+
 func (suite *ResolverSuite) TestCallNotAFunc() {
 	suite.Require().EqualError(suite.resolver.Call("STRING!"), "di: invalid function")
 }

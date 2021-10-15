@@ -146,13 +146,6 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 	suite.Require().Equal(sh.GetArea(), 13)
 }
 
-func (suite *ContainerSuite) TestInstance() {
-	suite.Require().NoError(suite.container.Instance(newCircle(), di.DefaultBindName))
-
-	suite.Require().EqualError(suite.resolver.Call(func(s1 Shape) { return }), "di: no binding found for: di_test.Shape")
-	suite.Require().NoError(suite.resolver.Call(func(s1 *Circle) { return }))
-}
-
 func (suite *ContainerSuite) TestFactory() {
 	suite.Require().NoError(suite.container.Factory(newCircle))
 
@@ -187,10 +180,27 @@ func (suite *ContainerSuite) TestFactoryMultiError() {
 	}))
 }
 
+func (suite *ContainerSuite) TestImplementation() {
+	suite.Require().NoError(suite.container.Implementation(newCircle()))
+
+	suite.Require().EqualError(suite.resolver.Call(func(s1 Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().NoError(suite.resolver.Call(func(s1 *Circle) { return }))
+}
+
+func (suite *ContainerSuite) TestImplementationWithoutName() {
+	suite.Require().NoError(suite.container.Implementation(newCircle(), di.WithName("theCircle")))
+
+	var c *Circle
+	suite.Require().EqualError(suite.resolver.Resolve(&c), "di: no binding found for: *di_test.Circle")
+	suite.Require().NoError(suite.resolver.Resolve(&c, di.WithName("theCircle")))
+}
+
 func (suite *ContainerSuite) TestCoverageBump() {
 	suite.Require().NoError(di.Singleton(newCircle))
 	suite.Require().NoError(di.Factory(newCircle))
+	suite.Require().NoError(di.Implementation(newCircle()))
 	suite.Require().NoError(di.Call(func(s Shape) { return }))
+	suite.Require().NoError(di.With(newCircle()).Call(func(s Shape) { return }))
 
 	var target Shape
 	suite.Require().NoError(di.Resolve(&target))

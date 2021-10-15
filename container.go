@@ -60,19 +60,19 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 		return errors.New("di: the constructor must return useful values")
 	}
 
-	var numRealImplementations = ref.NumOut()
-	if isError(ref.Out(numRealImplementations - 1)) {
-		numRealImplementations--
+	var numRealInstances = ref.NumOut()
+	if isError(ref.Out(numRealInstances - 1)) {
+		numRealInstances--
 	}
 
-	var implementations []reflect.Value
+	var instances []reflect.Value
 	switch {
 	case !opts.factory:
-		if numRealImplementations > 1 && len(opts.names) > 1 && numRealImplementations != len(opts.names) {
+		if numRealInstances > 1 && len(opts.names) > 1 && numRealInstances != len(opts.names) {
 			return errors.New("di: the constructor that returns multiple values must be called with either one name or number of names equal to number of values")
 		}
 
-		if implementations, err = self.getResolver().invoke(constructor); err != nil {
+		if instances, err = self.getResolver().invoke(constructor); err != nil {
 			return
 		}
 
@@ -83,7 +83,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 	self.lock.Lock()
 	defer self.lock.Unlock()
 
-	for i := 0; i < numRealImplementations; i++ {
+	for i := 0; i < numRealInstances; i++ {
 		// we are not interested in returned errors
 		if isError(ref.Out(i)) {
 			continue
@@ -107,18 +107,18 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		// Singleton instances
 		// if there is more than one instance returned from constructor - use appropriate name for it
-		if numRealImplementations > 1 {
+		if numRealInstances > 1 {
 			if len(opts.names) > 1 {
 				name = opts.names[i]
 			}
 
-			self.bindings[ref.Out(i)][name] = Binding{instance: implementations[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
 			continue
 		}
 
 		// if only one instance is returned from constructor - bind it under all provided names
 		for _, name = range opts.names {
-			self.bindings[ref.Out(i)][name] = Binding{instance: implementations[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
 		}
 	}
 

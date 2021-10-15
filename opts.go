@@ -30,7 +30,7 @@ func WithReturn(returns ...interface{}) Option {
 	}
 }
 
-// options for binding instances into container
+// options for binding implementations into container
 type bindOptions struct {
 	factory bool
 	names   []string
@@ -71,7 +71,9 @@ func (self *resolveOptions) Apply(opt Option) {
 }
 
 func (self *resolveOptions) SetName(names ...string) {
-	self.name = names[0]
+	if len(names) > 0 {
+		self.name = names[0]
+	}
 }
 
 // options for resolving abstractions

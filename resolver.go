@@ -13,25 +13,25 @@ func NewResolver(containers ...Container) Resolver {
 	}
 
 	return &resolver{
-		list: containers,
+		containers: containers,
 	}
 }
 
 type Resolver interface {
-	With(instances ...interface{}) Resolver
+	With(implementations ...interface{}) Resolver
 	Resolve(receiver interface{}, opts ...Option) error
 	Call(function interface{}, opts ...Option) error
 	Fill(receiver interface{}) error
 }
 
 type resolver struct {
-	list      []Container
-	instances []interface{}
+	containers      []Container
+	implementations []interface{}
 }
 
 func (self *resolver) getBinding(abstraction reflect.Type, name string) (bnd Binding, err error) {
-	// look in with-instance list
-	for _, inst := range self.instances {
+	// look in with() implementation list
+	for _, inst := range self.implementations {
 		if reflect.TypeOf(inst).AssignableTo(abstraction) && name == DefaultBindName {
 			return Binding{
 				instance: inst,
@@ -41,7 +41,7 @@ func (self *resolver) getBinding(abstraction reflect.Type, name string) (bnd Bin
 
 	// look in containers
 	var list map[string]Binding
-	for _, cnt := range self.list {
+	for _, cnt := range self.containers {
 		if list, err = cnt.ListBindings(abstraction); err != nil {
 			continue
 		}
@@ -114,14 +114,14 @@ func (self *resolver) invoke(function interface{}) (out []reflect.Value, err err
 	return
 }
 
-// With takes a list of ready instances and tries to use them in resolving scenarios
-func (self *resolver) With(instances ...interface{}) Resolver {
+// With takes a list of instantiated implementations and tries to use them in resolving scenarios
+func (self *resolver) With(implementations ...interface{}) Resolver {
 	var res = &resolver{
-		list:      make([]Container, len(self.list)),
-		instances: instances, // this is required for us to be able to resolve already existing instances to abstract types (interfaces)
+		containers:      make([]Container, len(self.containers)),
+		implementations: implementations, // this is required for us to be able to resolve already existing implementations to abstract types (interfaces)
 	}
 
-	copy(res.list, self.list)
+	copy(res.containers, self.containers)
 
 	return res
 }
@@ -256,7 +256,7 @@ func (self *resolver) fillSlice(receiver interface{}) error {
 		result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, 3)
 	)
 
-	for _, cnt := range self.list {
+	for _, cnt := range self.containers {
 		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue
@@ -287,7 +287,7 @@ func (self *resolver) fillMap(receiver interface{}) error {
 		result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), 3)
 	)
 
-	for _, cnt := range self.list {
+	for _, cnt := range self.containers {
 		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue

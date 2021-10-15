@@ -2,9 +2,9 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/HnH/di)](https://goreportcard.com/report/github.com/HnH/di)
 
 # Dependency injection
-DI is a dependency injection library that is focused on clean API and flexibility. DI has two types of top-level abstractions: 
-Container and Resolver. First one is responsible for accepting constructors and instances and creating abstraction bindings 
-out of them. Second implements different instance resolution scenarios against one or more Containers.
+DI is a dependency injection library that is focused on clean API and flexibility. DI has two types of top-level abstractions: Container and Resolver.
+First one is responsible for accepting constructors and implementations and creating abstraction bindings out of them.
+Second implements different implementation resolution scenarios against one or more Containers.
 
 Initially this library was heavily inspired by [GoLobby Container](https://github.com/golobby/container) but since then 
 had a lot of backwards incompatible changes in structure, functionality and API.
@@ -17,8 +17,8 @@ go get github.com/HnH/di
 ```go
 type Container interface {
     Singleton(constructor interface{}, opts ...Option) error
-    Instance(instance interface{}, name string) error
     Factory(constructor interface{}, opts ...Option) error
+    Implementation(implementation interface{}, opts ...Option) error
     ListBindings(reflect.Type) (map[string]Binding, error)
     Reset()
 }
@@ -64,15 +64,51 @@ err := di.Factory(func() (Abstraction) {
 }, di.WithName("customName"))
 ```
 
+#### Implementation
+`Implementation()` receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored.
+
+```go
+var circle Shape = newCircle()
+err = di.Implementation(circle)
+
+// will return error di: no binding found for: di_test.Shape
+var a Shape
+err = di.Resolve(&a)
+
+// will resolve circle
+var c *Circle
+err = di.Resolve(&a)
+
+// also naming options can be used as everywhere
+err = di.Implementation(circle, di.WithName("customName"))
+err = di.Resolve(&c, di.WithName("customName"))
+```
+
 ### Resolver
 ```go
 type Resolver interface {
-    With(instances ...interface{}) Resolver
+    With(implementations ...interface{}) Resolver
     Resolve(receiver interface{}, opts ...Option) error
     Call(function interface{}, opts ...Option) error
     Fill(receiver interface{}) error
 }
 ```
+#### With
+`With()` takes a list of instantiated implementations and tries to use them in resolving scenarios.
+In the opposite to Container's `Implementation()` method `With()` does not put instances into container and does not reflect a type on a binding time.
+Instead of this it reuses `reflect.Type.AssignableTo()` method capabilities on abstraction resolution time.
+
+```go
+var circle Shape = newCircle()
+err = di.Implementation(circle)
+
+// di: no binding found for: di_test.Shape
+di.Call(func(s Shape) { return })
+
+// ok
+di.With(circle).Call(func(s Shape) { return }))
+```
+
 #### Resolve
 `Resolve()` requires a receiver (pointer) of an Abstraction and fills it with appropriate Implementation.
 

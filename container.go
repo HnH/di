@@ -10,8 +10,8 @@ import (
 // Container is responsible for abstraction binding
 type Container interface {
 	Singleton(constructor interface{}, opts ...Option) error
-	Instance(instance interface{}, name string) error
 	Factory(constructor interface{}, opts ...Option) error
+	Implementation(implementation interface{}, opts ...Option) error
 	ListBindings(reflect.Type) (map[string]Binding, error)
 	Reset()
 }
@@ -37,39 +37,12 @@ type Binding struct {
 	instance interface{} // instance stored for reusing in singleton bindings
 }
 
-func (self *container) ListBindings(abstraction reflect.Type) (map[string]Binding, error) {
-	self.lock.RLock()
-	defer self.lock.RUnlock()
-
-	var bnds, ok = self.bindings[abstraction]
-	if !ok {
-		return bnds, fmt.Errorf("di: no binding found for: %s", abstraction.String())
-	}
-
-	return bnds, nil
-}
-
-// Instance receives ready instance and bind it to it's REAL type, which means that declared abstract variable type (interface) is ignored
-func (self *container) Instance(instance interface{}, name string) error {
-	self.lock.RLock()
-	defer self.lock.RUnlock()
-
-	var ref = reflect.TypeOf(instance)
-	if _, ok := self.bindings[ref]; !ok {
-		self.bindings[ref] = make(map[string]Binding)
-	}
-
-	self.bindings[ref][name] = Binding{instance: instance}
-
-	return nil
-}
-
 func (self *container) getResolver() *resolver {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
 	return &resolver{
-		list: []Container{
+		containers: []Container{
 			self,
 		},
 	}
@@ -87,19 +60,19 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 		return errors.New("di: the constructor must return useful values")
 	}
 
-	var numRealInstances = ref.NumOut()
-	if isError(ref.Out(numRealInstances - 1)) {
-		numRealInstances--
+	var numRealImplementations = ref.NumOut()
+	if isError(ref.Out(numRealImplementations - 1)) {
+		numRealImplementations--
 	}
 
-	var instances []reflect.Value
+	var implementations []reflect.Value
 	switch {
 	case !opts.factory:
-		if numRealInstances > 1 && len(opts.names) > 1 && numRealInstances != len(opts.names) {
+		if numRealImplementations > 1 && len(opts.names) > 1 && numRealImplementations != len(opts.names) {
 			return errors.New("di: the constructor that returns multiple values must be called with either one name or number of names equal to number of values")
 		}
 
-		if instances, err = self.getResolver().invoke(constructor); err != nil {
+		if implementations, err = self.getResolver().invoke(constructor); err != nil {
 			return
 		}
 
@@ -110,7 +83,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 	self.lock.Lock()
 	defer self.lock.Unlock()
 
-	for i := 0; i < numRealInstances; i++ {
+	for i := 0; i < numRealImplementations; i++ {
 		// we are not interested in returned errors
 		if isError(ref.Out(i)) {
 			continue
@@ -134,18 +107,18 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		// Singleton instances
 		// if there is more than one instance returned from constructor - use appropriate name for it
-		if numRealInstances > 1 {
+		if numRealImplementations > 1 {
 			if len(opts.names) > 1 {
 				name = opts.names[i]
 			}
 
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: implementations[i].Interface()}
 			continue
 		}
 
 		// if only one instance is returned from constructor - bind it under all provided names
 		for _, name = range opts.names {
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: implementations[i].Interface()}
 		}
 	}
 
@@ -163,6 +136,38 @@ func (self *container) Factory(constructor interface{}, opts ...Option) error {
 	options.factory = true
 
 	return self.bind(constructor, options)
+}
+
+// Implementation receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored
+func (self *container) Implementation(implementation interface{}, opts ...Option) error {
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	var ref = reflect.TypeOf(implementation)
+	if _, ok := self.bindings[ref]; !ok {
+		self.bindings[ref] = make(map[string]Binding)
+	}
+
+	var options = newBindOptions(opts)
+	if len(options.names) == 0 {
+		options.names = []string{DefaultBindName}
+	}
+
+	self.bindings[ref][options.names[0]] = Binding{instance: implementation}
+
+	return nil
+}
+
+func (self *container) ListBindings(abstraction reflect.Type) (map[string]Binding, error) {
+	self.lock.RLock()
+	defer self.lock.RUnlock()
+
+	var bnds, ok = self.bindings[abstraction]
+	if !ok {
+		return bnds, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+	}
+
+	return bnds, nil
 }
 
 // Reset deletes all the existing bindings and empties the container instance.

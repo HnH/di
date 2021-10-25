@@ -76,6 +76,14 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 			return
 		}
 
+		for _, ins := range instances {
+			if t, ok := ins.Interface().(Constructor); ok {
+				if err = t.Construct(); err != nil {
+					return
+				}
+			}
+		}
+
 	case opts.factory && (ref.NumOut() == 2 && !isError(ref.Out(1)) || ref.NumOut() > 2):
 		return errors.New("di: factory resolvers must return exactly one value and optionally one error")
 	}

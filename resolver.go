@@ -24,6 +24,10 @@ type Resolver interface {
 	Fill(receiver interface{}) error
 }
 
+type Constructor interface {
+	Construct() error
+}
+
 type resolver struct {
 	containers      []Container
 	implementations []interface{}
@@ -74,6 +78,12 @@ func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 	var out, err = self.invoke(bnd.factory)
 	if err != nil {
 		return nil, err
+	}
+
+	if t, ok := out[0].Interface().(Constructor); ok {
+		if err = t.Construct(); err != nil {
+			return nil, err
+		}
 	}
 
 	return out[0].Interface(), nil

@@ -1,0 +1,18 @@
+version: 2.1
+orbs:
+  codecov: codecov/codecov@3.2.0
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.17
+    working_directory: ~/di
+    steps:
+      - checkout
+      - run: make test
+      - run: go get -u github.com/mgechev/revive && go get -u github.com/securego/gosec/v2/cmd/gosec
+      - run: make lint
+      - store_artifacts:
+          path: coverage.out
+          destination: coverage.out
+      - codecov/upload:
+          file: coverage.out

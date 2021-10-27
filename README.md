@@ -1,5 +1,7 @@
-[![GoDoc](https://godoc.org/github.com/HnH/di?status.svg)](https://godoc.org/github.com/HnH/di)
+[![CircleCI](https://circleci.com/gh/HnH/di/tree/master.svg?style=svg&circle-token=cd6ef5c602e0f89a80488349a1e4fbe034b8d717)](https://circleci.com/gh/HnH/di/tree/master)
+[![codecov](https://codecov.io/gh/HnH/di/branch/master/graph/badge.svg)](https://codecov.io/gh/HnH/di)
 [![Go Report Card](https://goreportcard.com/badge/github.com/HnH/di)](https://goreportcard.com/report/github.com/HnH/di)
+[![GoDoc](https://godoc.org/github.com/HnH/di?status.svg)](https://godoc.org/github.com/HnH/di)
 
 # Dependency injection
 DI is a dependency injection library that is focused on clean API and flexibility. DI has two types of top-level abstractions: Container and Resolver.

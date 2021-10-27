@@ -205,7 +205,7 @@ func (self *resolver) Resolve(receiver interface{}, opts ...Option) error {
 func (self *resolver) Fill(receiver interface{}) error {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil {
-		return errors.New("di: invalid receiver")
+		return errors.New("di: invalid receiver: nil")
 	}
 
 	if ref.Kind() != reflect.Ptr {

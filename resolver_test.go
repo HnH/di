@@ -242,7 +242,7 @@ func (suite *ResolverSuite) TestFillReceiverInvalid() {
 
 func (suite *ResolverSuite) TestFillReceiverNil() {
 	var target Shape
-	suite.Require().EqualError(suite.resolver.Fill(target), "di: invalid receiver")
+	suite.Require().EqualError(suite.resolver.Fill(target), "di: invalid receiver: nil")
 }
 
 func (suite *ResolverSuite) TestFillReceiverNotAPointer() {

@@ -82,14 +82,14 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 			return
 		}
 
-		for _, ins := range instances {
+		for i := 0; i < numRealInstances; i++ {
 			if opts.fill {
-				if err = self.getResolver().Fill(ins.Interface()); err != nil {
+				if err = self.getResolver().Fill(instances[i].Interface()); err != nil {
 					return
 				}
 			}
 
-			if t, ok := ins.Interface().(Constructor); ok {
+			if t, ok := instances[i].Interface().(Constructor); ok {
 				if _, err = self.getResolver().invoke(t.Construct); err != nil {
 					return
 				}

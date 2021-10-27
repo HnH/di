@@ -13,6 +13,15 @@ To install DI simply run in your project directory:
 go get github.com/HnH/di
 ```
 
+### Constructor
+Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
+
+```go
+type Constructor interface {
+    Construct() error
+}
+```
+
 ### Container
 ```go
 type Container interface {
@@ -65,7 +74,7 @@ err := di.Factory(func() (Abstraction) {
 ```
 
 #### Implementation
-`Implementation()` receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored.
+`Implementation()` receives ready instance and binds it to its **real** type, which means that declared abstract variable type (interface) is ignored.
 
 ```go
 var circle Shape = newCircle()
@@ -153,18 +162,17 @@ type App struct {
     x int
 }
 
-myApp := App{}
-
-err := container.Fill(&myApp)
+var App = App{}
+err = container.Fill(&myApp)
 
 // [Typed Bindings]
-// `myApp.mailer` will be an implementation of the Mailer interface
+// `App.mailer` will be an implementation of the Mailer interface
 
 // [Named Bindings]
-// `myApp.data` will be a MySQL implementation of the Database interface
-// `myApp.cache` will be a Redis implementation of the Database interface
+// `App.data` will be a MySQL implementation of the Database interface
+// `App.cache` will be a Redis implementation of the Database interface
 
-// `myApp.x` will be ignored since it has no `di` tag
+// `App.x` will be ignored since it has no `di` tag
 ```
 
 Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.

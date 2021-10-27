@@ -7,6 +7,11 @@ import (
 	"sync"
 )
 
+// Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
+type Constructor interface {
+	Construct() error
+}
+
 // Container is responsible for abstraction binding
 type Container interface {
 	Singleton(constructor interface{}, opts ...Option) error
@@ -78,7 +83,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		for _, ins := range instances {
 			if t, ok := ins.Interface().(Constructor); ok {
-				if err = t.Construct(); err != nil {
+				if _, err = self.getResolver().invoke(t.Construct); err != nil {
 					return
 				}
 			}
@@ -92,11 +97,6 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 	defer self.lock.Unlock()
 
 	for i := 0; i < numRealInstances; i++ {
-		// we are not interested in returned errors
-		if isError(ref.Out(i)) {
-			continue
-		}
-
 		if _, ok := self.bindings[ref.Out(i)]; !ok {
 			self.bindings[ref.Out(i)] = make(map[string]Binding)
 		}

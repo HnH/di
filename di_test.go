@@ -1,15 +1,13 @@
 package di_test
 
+import "time"
+
 func newCircle() Shape {
 	return &Circle{a: 100500}
 }
 
 func newRectangle() Shape {
 	return &Rectangle{a: 255}
-}
-
-func newMySQL() Database {
-	return &MySQL{}
 }
 
 type Shape interface {
@@ -41,6 +39,16 @@ func (s Rectangle) GetArea() int {
 	return s.a
 }
 
+func newMySQL() Database {
+	return &MySQL{}
+}
+
+func newMongoDB(err error) Database {
+	return &MongoDB{
+		constructErr: err,
+	}
+}
+
 type Database interface {
 	Connect() bool
 }
@@ -48,5 +56,20 @@ type Database interface {
 type MySQL struct{}
 
 func (m MySQL) Connect() bool {
+	return true
+}
+
+type MongoDB struct {
+	constructCalled time.Time
+	constructErr    error
+}
+
+func (m *MongoDB) Construct() error {
+	m.constructCalled = time.Now()
+
+	return m.constructErr
+}
+
+func (m *MongoDB) Connect() bool {
 	return true
 }

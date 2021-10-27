@@ -29,6 +29,12 @@ func (suite *ResolverSuite) TearDownTest() {
 	suite.container.Reset()
 }
 
+func (suite *ResolverSuite) TestNewResolver() {
+	var rsl = di.NewResolver()
+	suite.Require().NotNil(rsl)
+	suite.Require().EqualError(di.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+}
+
 func (suite *ResolverSuite) TestCallMulti() {
 	suite.Require().NoError(suite.container.Singleton(func() (Shape, Database, error) {
 		return &Rectangle{a: 777}, &MySQL{}, nil
@@ -267,6 +273,13 @@ func (suite *ResolverSuite) TestFillSliceUnbound() {
 	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
 }
 
+func (suite *ResolverSuite) TestFillSliceFactoryError() {
+	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
+
+	var list []Database
+	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error")
+}
+
 func (suite *ResolverSuite) TestFillInvalidMap() {
 	suite.Require().NoError(suite.container.Singleton(newCircle))
 
@@ -277,4 +290,11 @@ func (suite *ResolverSuite) TestFillInvalidMap() {
 func (suite *ResolverSuite) TestFillMapUnbound() {
 	var list map[string]Shape
 	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
+}
+
+func (suite *ResolverSuite) TestFillMapFactoryError() {
+	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
+
+	var list map[string]Database
+	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error")
 }

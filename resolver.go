@@ -24,10 +24,6 @@ type Resolver interface {
 	Fill(receiver interface{}) error
 }
 
-type Constructor interface {
-	Construct() error
-}
-
 type resolver struct {
 	containers      []Container
 	implementations []interface{}
@@ -81,7 +77,7 @@ func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 	}
 
 	if t, ok := out[0].Interface().(Constructor); ok {
-		if err = t.Construct(); err != nil {
+		if _, err = self.invoke(t.Construct); err != nil {
 			return nil, err
 		}
 	}
@@ -116,8 +112,8 @@ func (self *resolver) invoke(function interface{}) (out []reflect.Value, err err
 	}
 
 	out = reflect.ValueOf(function).Call(args)
-	// if there is more than one returned value and the last one is error and it's not nil then return it
-	if len(out) > 1 && isError(out[len(out)-1].Type()) && !out[len(out)-1].IsNil() {
+	// if there is something returned and the last value is error and it's not nil then return it
+	if len(out) > 0 && isError(out[len(out)-1].Type()) && !out[len(out)-1].IsNil() {
 		return nil, out[len(out)-1].Interface().(error)
 	}
 

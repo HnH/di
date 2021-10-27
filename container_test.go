@@ -95,6 +95,15 @@ func (suite *ContainerSuite) TestSingletonMultiNaming() {
 	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
 }
 
+func (suite *ContainerSuite) TestSingletonConstructor() {
+	suite.Require().NoError(suite.container.Singleton(func() Database { return newMongoDB(nil) }))
+
+	var db Database
+	suite.Require().NoError(suite.resolver.Resolve(&db))
+	suite.Require().IsType(&MongoDB{}, db)
+	suite.Require().False(db.(*MongoDB).constructCalled.IsZero())
+}
+
 func (suite *ContainerSuite) TestSingletonMultiNamingCountMismatch() {
 	suite.Require().EqualError(
 		suite.container.Singleton(func() (Shape, Database, error) {
@@ -146,6 +155,15 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 	suite.Require().Equal(sh.GetArea(), 13)
 }
 
+func (suite *ContainerSuite) TestSingletonConstructorError() {
+	suite.Require().EqualError(suite.container.Singleton(func() Database {
+		return newMongoDB(errors.New("dummy error"))
+	}), "dummy error")
+
+	var db Database
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Database")
+}
+
 func (suite *ContainerSuite) TestFactory() {
 	suite.Require().NoError(suite.container.Factory(newCircle))
 
@@ -166,6 +184,21 @@ func (suite *ContainerSuite) TestFactoryNamed() {
 	suite.Require().Equal(sh.GetArea(), 100500)
 }
 
+func (suite *ContainerSuite) TestFactoryConstructor() {
+	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(nil) }))
+
+	var db Database
+	suite.Require().NoError(suite.resolver.Resolve(&db))
+	suite.Require().IsType(&MongoDB{}, db)
+	suite.Require().False(db.(*MongoDB).constructCalled.IsZero())
+
+	var db2 Database
+	suite.Require().NoError(suite.resolver.Resolve(&db2))
+	suite.Require().IsType(&MongoDB{}, db2)
+	suite.Require().False(db2.(*MongoDB).constructCalled.IsZero())
+	suite.Require().True(db2.(*MongoDB).constructCalled.After(db.(*MongoDB).constructCalled))
+}
+
 func (suite *ContainerSuite) TestFactoryMultiError() {
 	suite.Require().EqualError(suite.container.Factory(func() (Circle, Rectangle, Database) {
 		return Circle{a: 666}, Rectangle{a: 666}, &MySQL{}
@@ -178,6 +211,13 @@ func (suite *ContainerSuite) TestFactoryMultiError() {
 	suite.Require().NoError(suite.container.Factory(func() (Shape, error) {
 		return nil, errors.New("dummy error")
 	}))
+}
+
+func (suite *ContainerSuite) TestFactoryConstructorError() {
+	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
+
+	var db Database
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "dummy error")
 }
 
 func (suite *ContainerSuite) TestImplementation() {

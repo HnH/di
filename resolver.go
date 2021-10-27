@@ -76,6 +76,12 @@ func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 		return nil, err
 	}
 
+	if bnd.fill {
+		if err = self.Fill(out[0].Interface()); err != nil {
+			return nil, err
+		}
+	}
+
 	if t, ok := out[0].Interface().(Constructor); ok {
 		if _, err = self.invoke(t.Construct); err != nil {
 			return nil, err
@@ -203,7 +209,7 @@ func (self *resolver) Fill(receiver interface{}) error {
 	}
 
 	if ref.Kind() != reflect.Ptr {
-		return errors.New("di: receiver is not a pointer")
+		return fmt.Errorf("di: receiver is not a pointer: %s", ref.Kind().String())
 	}
 
 	switch ref.Elem().Kind() {

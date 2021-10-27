@@ -60,6 +60,8 @@ func (m MySQL) Connect() bool {
 }
 
 type MongoDB struct {
+	Shape Shape `di:"type"`
+
 	constructCalled time.Time
 	constructErr    error
 }

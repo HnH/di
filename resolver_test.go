@@ -247,7 +247,7 @@ func (suite *ResolverSuite) TestFillReceiverNil() {
 
 func (suite *ResolverSuite) TestFillReceiverNotAPointer() {
 	var db MySQL
-	suite.Require().EqualError(suite.resolver.Fill(db), "di: receiver is not a pointer")
+	suite.Require().EqualError(suite.resolver.Fill(db), "di: receiver is not a pointer: struct")
 }
 
 func (suite *ResolverSuite) TestFillInvalidName() {

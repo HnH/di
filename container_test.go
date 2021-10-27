@@ -95,6 +95,15 @@ func (suite *ContainerSuite) TestSingletonMultiNaming() {
 	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
 }
 
+func (suite *ContainerSuite) TestSingletonFill() {
+	suite.Require().EqualError(suite.container.Singleton(func() Database {
+		return newMongoDB(nil)
+	}, di.WithFill()), "di: no binding found for: di_test.Shape")
+
+	suite.Require().NoError(suite.container.Singleton(newCircle))
+	suite.Require().NoError(suite.container.Singleton(func() Database { return newMongoDB(nil) }, di.WithFill()))
+}
+
 func (suite *ContainerSuite) TestSingletonConstructor() {
 	suite.Require().NoError(suite.container.Singleton(func() Database { return newMongoDB(nil) }))
 
@@ -182,6 +191,18 @@ func (suite *ContainerSuite) TestFactoryNamed() {
 	var sh Shape
 	suite.Require().NoError(suite.resolver.Resolve(&sh, di.WithName("theCircle")))
 	suite.Require().Equal(sh.GetArea(), 100500)
+}
+
+func (suite *ContainerSuite) TestFactoryFill() {
+	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(nil) }, di.WithFill()))
+
+	var db Database
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Shape")
+
+	suite.Require().NoError(suite.container.Singleton(newCircle))
+	suite.Require().NoError(suite.resolver.Resolve(&db))
+	suite.Require().IsType(&MongoDB{}, db)
+	suite.Require().False(db.(*MongoDB).constructCalled.IsZero())
 }
 
 func (suite *ContainerSuite) TestFactoryConstructor() {

@@ -40,6 +40,7 @@ const DefaultBindName = "default"
 type Binding struct {
 	factory  interface{} // factory method that creates the appropriate implementation of the abstraction
 	instance interface{} // instance stored for reusing in singleton bindings
+	fill     bool        // call Fill() on a returned instance after it's resolution
 }
 
 func (self *container) getResolver() *resolver {
@@ -82,6 +83,17 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 		}
 
 		for _, ins := range instances {
+			if opts.fill {
+				//fmt.Printf("%#v\r\n", ins.Interface())
+				//
+				//var tag, ok = reflect.ValueOf(ins.Interface()).Elem().Type().Field(0).Tag.Lookup("di")
+				//fmt.Printf("%v %#v", ok, tag)
+
+				if err = self.getResolver().Fill(ins.Interface()); err != nil {
+					return
+				}
+			}
+
 			if t, ok := ins.Interface().(Constructor); ok {
 				if _, err = self.getResolver().invoke(t.Construct); err != nil {
 					return
@@ -109,7 +121,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		// Factory method
 		if opts.factory {
-			self.bindings[ref.Out(i)][name] = Binding{factory: constructor}
+			self.bindings[ref.Out(i)][name] = Binding{factory: constructor, fill: opts.fill}
 			continue
 		}
 
@@ -120,13 +132,13 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 				name = opts.names[i]
 			}
 
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
 			continue
 		}
 
 		// if only one instance is returned from constructor - bind it under all provided names
 		for _, name = range opts.names {
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
 		}
 	}
 

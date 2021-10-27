@@ -76,6 +76,18 @@ func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 		return nil, err
 	}
 
+	if bnd.fill {
+		if err = self.Fill(out[0].Interface()); err != nil {
+			return nil, err
+		}
+	}
+
+	if t, ok := out[0].Interface().(Constructor); ok {
+		if _, err = self.invoke(t.Construct); err != nil {
+			return nil, err
+		}
+	}
+
 	return out[0].Interface(), nil
 }
 
@@ -106,8 +118,8 @@ func (self *resolver) invoke(function interface{}) (out []reflect.Value, err err
 	}
 
 	out = reflect.ValueOf(function).Call(args)
-	// if there is more than one returned value and the last one is error and it's not nil then return it
-	if len(out) > 1 && isError(out[len(out)-1].Type()) && !out[len(out)-1].IsNil() {
+	// if there is something returned and the last value is error and it's not nil then return it
+	if len(out) > 0 && isError(out[len(out)-1].Type()) && !out[len(out)-1].IsNil() {
 		return nil, out[len(out)-1].Interface().(error)
 	}
 
@@ -197,7 +209,7 @@ func (self *resolver) Fill(receiver interface{}) error {
 	}
 
 	if ref.Kind() != reflect.Ptr {
-		return errors.New("di: receiver is not a pointer")
+		return fmt.Errorf("di: receiver is not a pointer: %s", ref.Kind().String())
 	}
 
 	switch ref.Elem().Kind() {

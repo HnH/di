@@ -1,5 +1,7 @@
-[![GoDoc](https://godoc.org/github.com/HnH/di?status.svg)](https://godoc.org/github.com/HnH/di)
+[![CircleCI](https://circleci.com/gh/HnH/di/tree/master.svg?style=svg&circle-token=cd6ef5c602e0f89a80488349a1e4fbe034b8d717)](https://circleci.com/gh/HnH/di/tree/master)
+[![codecov](https://codecov.io/gh/HnH/di/branch/master/graph/badge.svg)](https://codecov.io/gh/HnH/di)
 [![Go Report Card](https://goreportcard.com/badge/github.com/HnH/di)](https://goreportcard.com/report/github.com/HnH/di)
+[![GoDoc](https://godoc.org/github.com/HnH/di?status.svg)](https://godoc.org/github.com/HnH/di)
 
 # Dependency injection
 DI is a dependency injection library that is focused on clean API and flexibility. DI has two types of top-level abstractions: Container and Resolver.
@@ -11,6 +13,15 @@ had a lot of backwards incompatible changes in structure, functionality and API.
 To install DI simply run in your project directory:
 ```bash
 go get github.com/HnH/di
+```
+
+### Constructor
+Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
+
+```go
+type Constructor interface {
+    Construct() error
+}
 ```
 
 ### Container
@@ -33,12 +44,12 @@ err = di.Singleton(func() (Abstraction, SecondAbstraction) {
     return Implementation, SecondImplementation
 })
 
-// Singleton may also accept naming option which means that returned Implementation will be available only under provided name
+// Singleton may also accept naming option which means that returned Implementation will be available only under provided name.
 err = di.Singleton(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName"))
 
-// Name can be provided for each of the Implementations if there are more than one
+// Name can be provided for each of the Implementations if there are more than one.
 err = di.Singleton(func() (Abstraction, SecondAbstraction) {
     return Implementation, SecondImplementation
 }, di.WithName("customName", "secondCustomName"))
@@ -47,6 +58,12 @@ err = di.Singleton(func() (Abstraction, SecondAbstraction) {
 err = di.Singleton(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName", "secondCustomName"))
+
+
+// WithFill() option calls `resolver.Fill()` on an instance right after it is created.
+err = di.Singleton(func() (Abstraction) {
+    return Implementation
+}, di.WithFill()) // di.resolver.Fill(Implementation) will be called under the hood
 ```
 
 #### Factory
@@ -58,28 +75,33 @@ err = di.Factory(func() (Abstraction) {
     return Implementation
 })
 
-// Factory also optionally accepts naming option which means that returned Implementation will be available only under provided name
+// Factory also optionally accepts naming option which means that returned Implementation will be available only under provided name.
 err := di.Factory(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName"))
+
+// Similarly to Singleton binding WithFill() option can be provided
+err = di.Factory(func() (Abstraction) {
+return Implementation
+}, di.WithFill()) // di.resolver.Fill(Implementation) will be called under the hood
 ```
 
 #### Implementation
-`Implementation()` receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored.
+`Implementation()` receives ready instance and binds it to its **real** type, which means that declared abstract variable type (interface) is ignored.
 
 ```go
 var circle Shape = newCircle()
 err = di.Implementation(circle)
 
-// will return error di: no binding found for: di_test.Shape
+// Will return error di: no binding found for: di_test.Shape
 var a Shape
 err = di.Resolve(&a)
 
-// will resolve circle
+// Will resolve circle.
 var c *Circle
 err = di.Resolve(&a)
 
-// also naming options can be used as everywhere
+// Also naming options can be used as everywhere.
 err = di.Implementation(circle, di.WithName("customName"))
 err = di.Resolve(&c, di.WithName("customName"))
 ```
@@ -128,7 +150,7 @@ err = di.Call(func(a Abstraction) {
     // `a` will be an implementation of the Abstraction
 })
 
-// returned values can be bound to variables by providing an option
+// Returned values can be bound to variables by providing an option.
 var db Database
 err = di.Call(func(a Abstraction) Database {
     return &MySQL{a}
@@ -153,18 +175,17 @@ type App struct {
     x int
 }
 
-myApp := App{}
-
-err := container.Fill(&myApp)
+var App = App{}
+err = container.Fill(&myApp)
 
 // [Typed Bindings]
-// `myApp.mailer` will be an implementation of the Mailer interface
+// `App.mailer` will be an implementation of the Mailer interface
 
 // [Named Bindings]
-// `myApp.data` will be a MySQL implementation of the Database interface
-// `myApp.cache` will be a Redis implementation of the Database interface
+// `App.data` will be a MySQL implementation of the Database interface
+// `App.cache` will be a Redis implementation of the Database interface
 
-// `myApp.x` will be ignored since it has no `di` tag
+// `App.x` will be ignored since it has no `di` tag
 ```
 
 Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.

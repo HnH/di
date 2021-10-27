@@ -7,6 +7,11 @@ import (
 	"sync"
 )
 
+// Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
+type Constructor interface {
+	Construct() error
+}
+
 // Container is responsible for abstraction binding
 type Container interface {
 	Singleton(constructor interface{}, opts ...Option) error
@@ -35,6 +40,7 @@ const DefaultBindName = "default"
 type Binding struct {
 	factory  interface{} // factory method that creates the appropriate implementation of the abstraction
 	instance interface{} // instance stored for reusing in singleton bindings
+	fill     bool        // call Fill() on a returned instance after it's resolution
 }
 
 func (self *container) getResolver() *resolver {
@@ -76,6 +82,20 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 			return
 		}
 
+		for _, ins := range instances {
+			if opts.fill {
+				if err = self.getResolver().Fill(ins.Interface()); err != nil {
+					return
+				}
+			}
+
+			if t, ok := ins.Interface().(Constructor); ok {
+				if _, err = self.getResolver().invoke(t.Construct); err != nil {
+					return
+				}
+			}
+		}
+
 	case opts.factory && (ref.NumOut() == 2 && !isError(ref.Out(1)) || ref.NumOut() > 2):
 		return errors.New("di: factory resolvers must return exactly one value and optionally one error")
 	}
@@ -84,11 +104,6 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 	defer self.lock.Unlock()
 
 	for i := 0; i < numRealInstances; i++ {
-		// we are not interested in returned errors
-		if isError(ref.Out(i)) {
-			continue
-		}
-
 		if _, ok := self.bindings[ref.Out(i)]; !ok {
 			self.bindings[ref.Out(i)] = make(map[string]Binding)
 		}
@@ -101,7 +116,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		// Factory method
 		if opts.factory {
-			self.bindings[ref.Out(i)][name] = Binding{factory: constructor}
+			self.bindings[ref.Out(i)][name] = Binding{factory: constructor, fill: opts.fill}
 			continue
 		}
 
@@ -112,13 +127,13 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 				name = opts.names[i]
 			}
 
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
 			continue
 		}
 
 		// if only one instance is returned from constructor - bind it under all provided names
 		for _, name = range opts.names {
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface()}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
 		}
 	}
 

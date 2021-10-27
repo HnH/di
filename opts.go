@@ -14,6 +14,10 @@ type ReturnOption interface {
 	SetReturn(...interface{})
 }
 
+type FillingOption interface {
+	SetFill(bool)
+}
+
 func WithName(names ...string) Option {
 	return func(o Options) {
 		if opt, ok := o.(NamingOption); ok {
@@ -30,9 +34,18 @@ func WithReturn(returns ...interface{}) Option {
 	}
 }
 
+func WithFill() Option {
+	return func(o Options) {
+		if opt, ok := o.(FillingOption); ok {
+			opt.SetFill(true)
+		}
+	}
+}
+
 // options for binding implementations into container
 type bindOptions struct {
 	factory bool
+	fill    bool
 	names   []string
 }
 
@@ -50,6 +63,10 @@ func (self *bindOptions) Apply(opt Option) {
 
 func (self *bindOptions) SetName(names ...string) {
 	self.names = names
+}
+
+func (self *bindOptions) SetFill(f bool) {
+	self.fill = f
 }
 
 // options for resolving abstractions

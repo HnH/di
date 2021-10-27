@@ -42,12 +42,12 @@ err = di.Singleton(func() (Abstraction, SecondAbstraction) {
     return Implementation, SecondImplementation
 })
 
-// Singleton may also accept naming option which means that returned Implementation will be available only under provided name
+// Singleton may also accept naming option which means that returned Implementation will be available only under provided name.
 err = di.Singleton(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName"))
 
-// Name can be provided for each of the Implementations if there are more than one
+// Name can be provided for each of the Implementations if there are more than one.
 err = di.Singleton(func() (Abstraction, SecondAbstraction) {
     return Implementation, SecondImplementation
 }, di.WithName("customName", "secondCustomName"))
@@ -56,6 +56,12 @@ err = di.Singleton(func() (Abstraction, SecondAbstraction) {
 err = di.Singleton(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName", "secondCustomName"))
+
+
+// WithFill() option calls `resolver.Fill()` on an instance right after it is created.
+err = di.Singleton(func() (Abstraction) {
+    return Implementation
+}, di.WithFill()) // di.resolver.Fill(Implementation) will be called under the hood
 ```
 
 #### Factory
@@ -67,10 +73,15 @@ err = di.Factory(func() (Abstraction) {
     return Implementation
 })
 
-// Factory also optionally accepts naming option which means that returned Implementation will be available only under provided name
+// Factory also optionally accepts naming option which means that returned Implementation will be available only under provided name.
 err := di.Factory(func() (Abstraction) {
     return Implementation
 }, di.WithName("customName"))
+
+// Similarly to Singleton binding WithFill() option can be provided
+err = di.Factory(func() (Abstraction) {
+return Implementation
+}, di.WithFill()) // di.resolver.Fill(Implementation) will be called under the hood
 ```
 
 #### Implementation
@@ -80,15 +91,15 @@ err := di.Factory(func() (Abstraction) {
 var circle Shape = newCircle()
 err = di.Implementation(circle)
 
-// will return error di: no binding found for: di_test.Shape
+// Will return error di: no binding found for: di_test.Shape
 var a Shape
 err = di.Resolve(&a)
 
-// will resolve circle
+// Will resolve circle.
 var c *Circle
 err = di.Resolve(&a)
 
-// also naming options can be used as everywhere
+// Also naming options can be used as everywhere.
 err = di.Implementation(circle, di.WithName("customName"))
 err = di.Resolve(&c, di.WithName("customName"))
 ```
@@ -137,7 +148,7 @@ err = di.Call(func(a Abstraction) {
     // `a` will be an implementation of the Abstraction
 })
 
-// returned values can be bound to variables by providing an option
+// Returned values can be bound to variables by providing an option.
 var db Database
 err = di.Call(func(a Abstraction) Database {
     return &MySQL{a}

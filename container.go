@@ -84,11 +84,6 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		for _, ins := range instances {
 			if opts.fill {
-				//fmt.Printf("%#v\r\n", ins.Interface())
-				//
-				//var tag, ok = reflect.ValueOf(ins.Interface()).Elem().Type().Field(0).Tag.Lookup("di")
-				//fmt.Printf("%v %#v", ok, tag)
-
 				if err = self.getResolver().Fill(ins.Interface()); err != nil {
 					return
 				}

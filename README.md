@@ -82,7 +82,7 @@ err := di.Factory(func() (Abstraction) {
 
 // Similarly to Singleton binding WithFill() option can be provided
 err = di.Factory(func() (Abstraction) {
-return Implementation
+    return Implementation
 }, di.WithFill()) // di.resolver.Fill(Implementation) will be called under the hood
 ```
 
@@ -200,4 +200,26 @@ var list map[string]Shape
 container.Fill(&list)
 
 // map[string]Shape{"square": &Rectangle{}, "rounded": &Circle{}} 
+```
+
+### Context propagation
+```go
+type Context interface {
+    Put(Container) Context
+    Container() Container
+    Resolver() Resolver
+    Raw() context.Context
+}
+```
+Context propagation is possible via `di.Context` abstraction. Quick example:
+```go
+var container = di.NewContainer()
+container.Implementation(newCircle())
+
+var (
+    ctx = di.Ctx(context.Background).Put(container)
+    shp Shape
+)
+
+err = ctx.Resolver().Resolve(&shp) // err == nil
 ```

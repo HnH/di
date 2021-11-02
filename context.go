@@ -4,46 +4,60 @@ import "context"
 
 // Context describe DI context propagator capabilities
 type Context interface {
-	Put(Container) Context
+	SetContainer(Container) Context
 	Container() Container
+	SetResolver(Resolver) Context
 	Resolver() Resolver
 	Raw() context.Context
 }
 
 // Ctx returns context propagator
-func Ctx(c context.Context) Context {
+func Ctx(ctxt context.Context) Context {
 	return &ctx{
-		ctx: c,
+		Context: ctxt,
 	}
 }
 
-const contextKey = "di.ctx"
+const (
+	ctxKeyContainer = "di.ctx.container"
+	ctxKeyResolver  = "di.ctx.resolver"
+)
 
 type ctx struct {
-	ctx context.Context
+	context.Context
 }
 
-// Put sets container in context
-func (self *ctx) Put(c Container) Context {
-	self.ctx = context.WithValue(self.ctx, contextKey, c)
+// SetContainer puts container to a context
+func (self *ctx) SetContainer(c Container) Context {
+	self.Context = context.WithValue(self.Context, ctxKeyContainer, c)
 	return self
 }
 
-// Container returns container from context or creates a new one
+// Container returns container from context or returns a global container
 func (self *ctx) Container() Container {
-	if c, has := self.ctx.Value(contextKey).(Container); has {
+	if c, has := self.Context.Value(ctxKeyContainer).(Container); has {
 		return c
 	}
 
-	return NewContainer()
+	return globalContext.Container()
 }
 
-// Resolver returns a resolver instance against a Container() output
+// SetResolver puts container to a context
+func (self *ctx) SetResolver(r Resolver) Context {
+	self.Context = context.WithValue(self.Context, ctxKeyResolver, r)
+	return self
+}
+
+// Resolver returns a resolver instance either preset or against a Container() output
 func (self *ctx) Resolver() Resolver {
+	if r, has := self.Context.Value(ctxKeyResolver).(Resolver); has {
+		return r
+	}
+
 	return NewResolver(self.Container())
 }
 
 // Raw returns raw context.Context
 func (self *ctx) Raw() context.Context {
-	return self.ctx
+	return self.Context
 }

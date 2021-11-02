@@ -1,6 +1,7 @@
 package di_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -96,6 +97,7 @@ func (suite *ContainerSuite) TestSingletonMultiNaming() {
 }
 
 func (suite *ContainerSuite) TestSingletonFill() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().EqualError(suite.container.Singleton(func() Database {
 		return newMongoDB(nil)
 	}, di.WithFill()), "di: no binding found for: di_test.Shape")
@@ -105,6 +107,7 @@ func (suite *ContainerSuite) TestSingletonFill() {
 }
 
 func (suite *ContainerSuite) TestSingletonConstructor() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Singleton(func() Database { return newMongoDB(nil) }))
 
 	var db Database
@@ -165,6 +168,7 @@ func (suite *ContainerSuite) TestSingletonNamed() {
 }
 
 func (suite *ContainerSuite) TestSingletonConstructorError() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().EqualError(suite.container.Singleton(func() Database {
 		return newMongoDB(errors.New("dummy error"))
 	}), "dummy error")
@@ -194,6 +198,7 @@ func (suite *ContainerSuite) TestFactoryNamed() {
 }
 
 func (suite *ContainerSuite) TestFactoryFill() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(nil) }, di.WithFill()))
 
 	var db Database
@@ -206,6 +211,7 @@ func (suite *ContainerSuite) TestFactoryFill() {
 }
 
 func (suite *ContainerSuite) TestFactoryConstructor() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(nil) }))
 
 	var db Database
@@ -235,6 +241,7 @@ func (suite *ContainerSuite) TestFactoryMultiError() {
 }
 
 func (suite *ContainerSuite) TestFactoryConstructorError() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
 
 	var db Database
@@ -257,16 +264,16 @@ func (suite *ContainerSuite) TestImplementationWithoutName() {
 }
 
 func (suite *ContainerSuite) TestCoverageBump() {
-	suite.Require().NoError(di.Singleton(newCircle))
-	suite.Require().NoError(di.Factory(newCircle))
-	suite.Require().NoError(di.Implementation(newCircle()))
-	suite.Require().NoError(di.Call(func(s Shape) { return }))
-	suite.Require().NoError(di.With(newCircle()).Call(func(s Shape) { return }))
+	suite.Require().NoError(di.Singleton(context.Background(), newCircle))
+	suite.Require().NoError(di.Factory(context.Background(), newCircle))
+	suite.Require().NoError(di.Implementation(context.Background(), newCircle()))
+	suite.Require().NoError(di.Call(context.Background(), func(s Shape) { return }))
+	suite.Require().NoError(di.With(context.Background(), newCircle()).Call(func(s Shape) { return }))
 
 	var target Shape
-	suite.Require().NoError(di.Resolve(&target))
+	suite.Require().NoError(di.Resolve(context.Background(), &target))
 
 	var list []Shape
-	suite.Require().NoError(di.Fill(&list))
-	di.Reset()
+	suite.Require().NoError(di.Fill(context.Background(), &list))
+	di.Reset(context.Background())
 }

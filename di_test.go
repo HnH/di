@@ -1,6 +1,9 @@
 package di_test
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 func newCircle() Shape {
 	return &Circle{a: 100500}
@@ -66,7 +69,7 @@ type MongoDB struct {
 	constructErr    error
 }
 
-func (m *MongoDB) Construct() error {
+func (m *MongoDB) Construct(context.Context) error {
 	m.constructCalled = time.Now()
 
 	return m.constructErr

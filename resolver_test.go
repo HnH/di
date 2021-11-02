@@ -1,6 +1,7 @@
 package di_test
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -32,7 +33,7 @@ func (suite *ResolverSuite) TearDownTest() {
 func (suite *ResolverSuite) TestNewResolver() {
 	var rsl = di.NewResolver()
 	suite.Require().NotNil(rsl)
-	suite.Require().EqualError(di.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(di.Call(context.Background(), func(s Shape) { return }), "di: no binding found for: di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestCallMulti() {
@@ -73,10 +74,10 @@ func (suite *ResolverSuite) TestCallWith() {
 
 func (suite *ResolverSuite) TestCallImplementationWithDiff() {
 	var circle = newCircle()
-	suite.Require().NoError(di.Implementation(circle))
+	suite.Require().NoError(suite.container.Implementation(circle))
 
-	suite.Require().EqualError(di.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
-	suite.Require().NoError(di.With(circle).Call(func(s Shape) { return }))
+	suite.Require().EqualError(suite.resolver.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().NoError(suite.resolver.With(circle).Call(func(s Shape) { return }))
 }
 
 func (suite *ResolverSuite) TestCallNotAFunc() {
@@ -274,6 +275,7 @@ func (suite *ResolverSuite) TestFillSliceUnbound() {
 }
 
 func (suite *ResolverSuite) TestFillSliceFactoryError() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
 
 	var list []Database
@@ -293,6 +295,7 @@ func (suite *ResolverSuite) TestFillMapUnbound() {
 }
 
 func (suite *ResolverSuite) TestFillMapFactoryError() {
+	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
 
 	var list map[string]Database

@@ -1,16 +1,12 @@
 package di
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 )
-
-// Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
-type Constructor interface {
-	Construct() error
-}
 
 // Container is responsible for abstraction binding
 type Container interface {
@@ -19,6 +15,16 @@ type Container interface {
 	Implementation(implementation interface{}, opts ...Option) error
 	ListBindings(reflect.Type) (map[string]Binding, error)
 	Reset()
+}
+
+// Provider is an abstraction of an entity that provides something to Container
+type Provider interface {
+	Provide(Container) error
+}
+
+// Constructor implements a `Construct()` method which is called either after binding to container in case of singleton or after factory method was called.
+type Constructor interface {
+	Construct(context.Context) error
 }
 
 // NewContainer creates a new instance of the Container

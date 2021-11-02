@@ -19,16 +19,26 @@ type ContextSuite struct {
 }
 
 func (suite *ContextSuite) SetupSuite() {
-	suite.context = di.Ctx(context.Background()).Put(di.NewContainer())
+	suite.context = di.Ctx(context.Background()).SetContainer(di.NewContainer())
 }
 
 func (suite *ContextSuite) TearDownTest() {
 	suite.context.Container().Reset()
 }
 
-func (suite *ContextSuite) TestPut() {
+func (suite *ContextSuite) TestSetContainer() {
 	var ctx = context.Background()
-	suite.Require().NotNil(di.Ctx(ctx).Put(di.NewContainer()))
+	suite.Require().NotNil(di.Ctx(ctx).SetContainer(di.NewContainer()).Raw())
+}
+
+func (suite *ContextSuite) TestSetResolver() {
+	var (
+		ctx = di.Ctx(context.Background())
+		rsl = di.NewResolver(di.NewContainer())
+	)
+
+	suite.Require().NotNil(ctx.SetResolver(rsl).Raw())
+	suite.Require().Equal(rsl, ctx.Resolver())
 }
 
 func (suite *ContextSuite) TestDefaultContainer() {
@@ -38,6 +48,7 @@ func (suite *ContextSuite) TestDefaultContainer() {
 	)
 
 	suite.Require().EqualError(di.NewResolver(container).Resolve(&shape), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(di.Ctx(context.Background()).SetContainer(container).Resolver().Resolve(&shape), "di: no binding found for: di_test.Shape")
 }
 
 func (suite *ContextSuite) TestResolve() {

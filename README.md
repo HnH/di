@@ -15,15 +15,6 @@ To install DI simply run in your project directory:
 go get github.com/HnH/di
 ```
 
-### Constructor
-Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
-
-```go
-type Constructor interface {
-    Construct() error
-}
-```
-
 ### Container
 ```go
 type Container interface {
@@ -200,6 +191,25 @@ var list map[string]Shape
 container.Fill(&list)
 
 // map[string]Shape{"square": &Rectangle{}, "rounded": &Circle{}} 
+```
+
+### Provider
+Provider is an abstraction of an entity that provides something to Container
+
+```go
+type Provider interface {
+    Provide(Container) error
+}
+```
+
+### Constructor
+Constructor implements a `Construct()` method which is called either after binding to container in case of singleton, either after factory method was called.
+Note that `context.Context` must be provided in container before Constructor method can be called.
+
+```go
+type Constructor interface {
+    Construct(context.Context) error
+}
 ```
 
 ### Context propagation

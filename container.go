@@ -185,7 +185,7 @@ func (self *container) ListBindings(abstraction reflect.Type) (map[string]Bindin
 
 	var bnds, ok = self.bindings[abstraction]
 	if !ok {
-		return bnds, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+		return bnds, fmt.Errorf("di: no binding found for %s", abstraction.String())
 	}
 
 	return bnds, nil

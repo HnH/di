@@ -52,7 +52,7 @@ func (self *resolver) getBinding(abstraction reflect.Type, name string) (bnd Bin
 		}
 	}
 
-	return bnd, fmt.Errorf("di: no binding found for: %s", abstraction.String())
+	return bnd, fmt.Errorf("di: no binding found for %s", abstraction.String())
 }
 
 func (self *resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
@@ -202,7 +202,7 @@ func (self *resolver) Resolve(receiver interface{}, opts ...Option) error {
 
 // Fill takes a struct and resolves the fields with the tag `di:"..."`.
 // Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
-func (self *resolver) Fill(receiver interface{}) error {
+func (self *resolver) Fill(receiver interface{}) (err error) {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil {
 		return errors.New("di: invalid receiver: nil")
@@ -212,22 +212,31 @@ func (self *resolver) Fill(receiver interface{}) error {
 		return fmt.Errorf("di: receiver is not a pointer: %s", ref.Kind().String())
 	}
 
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%s: filling %s", err.Error(), ref.String())
+		}
+	}()
+
 	switch ref.Elem().Kind() {
 	case reflect.Struct:
-		return self.fillStruct(receiver)
+		err = self.fillStruct(receiver)
+		return err
 
 	case reflect.Slice:
-		return self.fillSlice(receiver)
+		err = self.fillSlice(receiver)
+		return
 
 	case reflect.Map:
 		if ref.Elem().Key().Name() != "string" {
 			break
 		}
 
-		return self.fillMap(receiver)
+		err = self.fillMap(receiver)
+		return
 	}
 
-	return errors.New("di: invalid receiver")
+	return fmt.Errorf("di: invalid receiver: %s", ref.String())
 }
 
 func (self *resolver) fillStruct(receiver interface{}) error {
@@ -285,7 +294,7 @@ func (self *resolver) fillSlice(receiver interface{}) error {
 	}
 
 	if result.Len() == 0 {
-		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
+		return fmt.Errorf("di: no binding found for %v", elem.Elem().String())
 	}
 
 	reflect.ValueOf(receiver).Elem().Set(result)
@@ -316,7 +325,7 @@ func (self *resolver) fillMap(receiver interface{}) error {
 	}
 
 	if result.Len() == 0 {
-		return fmt.Errorf("di: no binding found for: %v", elem.Elem().String())
+		return fmt.Errorf("di: no binding found for %v", elem.Elem().String())
 	}
 
 	reflect.ValueOf(receiver).Elem().Set(result)

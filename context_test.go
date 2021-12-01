@@ -47,8 +47,8 @@ func (suite *ContextSuite) TestDefaultContainer() {
 		shape     Shape
 	)
 
-	suite.Require().EqualError(di.NewResolver(container).Resolve(&shape), "di: no binding found for: di_test.Shape")
-	suite.Require().EqualError(di.Ctx(context.Background()).SetContainer(container).Resolver().Resolve(&shape), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(di.NewResolver(container).Resolve(&shape), "di: no binding found for di_test.Shape")
+	suite.Require().EqualError(di.Ctx(context.Background()).SetContainer(container).Resolver().Resolve(&shape), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ContextSuite) TestResolve() {
@@ -59,7 +59,7 @@ func (suite *ContextSuite) TestResolve() {
 	suite.Require().IsType(&Circle{}, shape)
 
 	suite.context.Container().Reset()
-	suite.Require().EqualError(suite.context.Resolver().Resolve(&shape), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.context.Resolver().Resolve(&shape), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ContextSuite) TestRaw() {

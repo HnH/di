@@ -84,7 +84,7 @@ err = di.Factory(func() (Abstraction) {
 var circle Shape = newCircle()
 err = di.Implementation(circle)
 
-// Will return error di: no binding found for: di_test.Shape
+// Will return error di: no binding found for di_test.Shape
 var a Shape
 err = di.Resolve(&a)
 
@@ -115,7 +115,7 @@ Instead of this it reuses `reflect.Type.AssignableTo()` method capabilities on a
 var circle Shape = newCircle()
 err = di.Implementation(circle)
 
-// di: no binding found for: di_test.Shape
+// di: no binding found for di_test.Shape
 di.Call(func(s Shape) { return })
 
 // ok

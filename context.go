@@ -28,14 +28,14 @@ type ctx struct {
 }
 
 // SetContainer puts container to a context
-func (self *ctx) SetContainer(c Container) Context {
-	self.Context = context.WithValue(self.Context, ctxKeyContainer, c)
-	return self
+func (ct *ctx) SetContainer(c Container) Context {
+	ct.Context = context.WithValue(ct.Context, ctxKeyContainer, c)
+	return ct
 }
 
 // Container returns container from context or returns a global container
-func (self *ctx) Container() Container {
-	if c, has := self.Context.Value(ctxKeyContainer).(Container); has {
+func (ct *ctx) Container() Container {
+	if c, has := ct.Context.Value(ctxKeyContainer).(Container); has {
 		return c
 	}
 
@@ -43,21 +43,21 @@ func (self *ctx) Container() Container {
 }
 
 // SetResolver puts container to a context
-func (self *ctx) SetResolver(r Resolver) Context {
-	self.Context = context.WithValue(self.Context, ctxKeyResolver, r)
-	return self
+func (ct *ctx) SetResolver(r Resolver) Context {
+	ct.Context = context.WithValue(ct.Context, ctxKeyResolver, r)
+	return ct
 }
 
 // Resolver returns a resolver instance either preset or against a Container() output
-func (self *ctx) Resolver() Resolver {
-	if r, has := self.Context.Value(ctxKeyResolver).(Resolver); has {
+func (ct *ctx) Resolver() Resolver {
+	if r, has := ct.Context.Value(ctxKeyResolver).(Resolver); has {
 		return r
 	}
 
-	return NewResolver(self.Container())
+	return NewResolver(ct.Container())
 }
 
 // Raw returns raw context.Context
-func (self *ctx) Raw() context.Context {
-	return self.Context
+func (ct *ctx) Raw() context.Context {
+	return ct.Context
 }

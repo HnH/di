@@ -57,7 +57,7 @@ func (suite *ContainerSuite) TestSingletonAlias() {
 	suite.Require().Equal(4444, s2.GetArea())
 
 	var s3 Shape
-	suite.Require().EqualError(suite.resolver.Resolve(&s3), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Resolve(&s3), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ContainerSuite) TestSingletonMulti() {
@@ -75,7 +75,7 @@ func (suite *ContainerSuite) TestSingletonMulti() {
 	suite.Require().IsType(&MySQL{}, db)
 
 	var err error
-	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
+	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for error")
 }
 
 func (suite *ContainerSuite) TestSingletonMultiNaming() {
@@ -93,14 +93,14 @@ func (suite *ContainerSuite) TestSingletonMultiNaming() {
 	suite.Require().IsType(&MySQL{}, db)
 
 	var err error
-	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for: error")
+	suite.Require().EqualError(suite.resolver.Resolve(&err), "di: no binding found for error")
 }
 
 func (suite *ContainerSuite) TestSingletonFill() {
 	suite.Require().NoError(suite.container.Singleton(context.Background))
 	suite.Require().EqualError(suite.container.Singleton(func() Database {
 		return newMongoDB(nil)
-	}, di.WithFill()), "di: no binding found for: di_test.Shape")
+	}, di.WithFill()), "di: no binding found for di_test.Shape: filling *di_test.MongoDB")
 
 	suite.Require().NoError(suite.container.Singleton(newCircle))
 	suite.Require().NoError(suite.container.Singleton(func() Database { return newMongoDB(nil) }, di.WithFill()))
@@ -154,7 +154,7 @@ func (suite *ContainerSuite) TestSingletonResolvableArgs() {
 func (suite *ContainerSuite) TestSingletonNonResolvableArgs() {
 	suite.Require().EqualError(suite.container.Singleton(func(s Shape) Shape {
 		return &Circle{a: s.GetArea()}
-	}), "di: no binding found for: di_test.Shape")
+	}), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ContainerSuite) TestSingletonNamed() {
@@ -174,7 +174,7 @@ func (suite *ContainerSuite) TestSingletonConstructorError() {
 	}), "dummy error")
 
 	var db Database
-	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Database")
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for di_test.Database")
 }
 
 func (suite *ContainerSuite) TestFactory() {
@@ -202,7 +202,7 @@ func (suite *ContainerSuite) TestFactoryFill() {
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(nil) }, di.WithFill()))
 
 	var db Database
-	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for di_test.Shape: filling *di_test.MongoDB")
 
 	suite.Require().NoError(suite.container.Singleton(newCircle))
 	suite.Require().NoError(suite.resolver.Resolve(&db))
@@ -251,7 +251,7 @@ func (suite *ContainerSuite) TestFactoryConstructorError() {
 func (suite *ContainerSuite) TestImplementation() {
 	suite.Require().NoError(suite.container.Implementation(newCircle()))
 
-	suite.Require().EqualError(suite.resolver.Call(func(s1 Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Call(func(s1 Shape) { return }), "di: no binding found for di_test.Shape")
 	suite.Require().NoError(suite.resolver.Call(func(s1 *Circle) { return }))
 }
 
@@ -259,7 +259,7 @@ func (suite *ContainerSuite) TestImplementationWithoutName() {
 	suite.Require().NoError(suite.container.Implementation(newCircle(), di.WithName("theCircle")))
 
 	var c *Circle
-	suite.Require().EqualError(suite.resolver.Resolve(&c), "di: no binding found for: *di_test.Circle")
+	suite.Require().EqualError(suite.resolver.Resolve(&c), "di: no binding found for *di_test.Circle")
 	suite.Require().NoError(suite.resolver.Resolve(&c, di.WithName("theCircle")))
 }
 

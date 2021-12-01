@@ -66,18 +66,18 @@ func newBindOptions(opts []Option) (out bindOptions) {
 }
 
 // Apply implements Options interface
-func (self *bindOptions) Apply(opt Option) {
-	opt(self)
+func (o *bindOptions) Apply(opt Option) {
+	opt(o)
 }
 
 // SetName implements NamingOption interface
-func (self *bindOptions) SetName(names ...string) {
-	self.names = names
+func (o *bindOptions) SetName(names ...string) {
+	o.names = names
 }
 
 // SetFill implements FillingOption interface
-func (self *bindOptions) SetFill(f bool) {
-	self.fill = f
+func (o *bindOptions) SetFill(f bool) {
+	o.fill = f
 }
 
 // options for resolving abstractions
@@ -95,14 +95,14 @@ func newResolveOptions(opts []Option) (out resolveOptions) {
 }
 
 // Apply implements Options interface
-func (self *resolveOptions) Apply(opt Option) {
-	opt(self)
+func (o *resolveOptions) Apply(opt Option) {
+	opt(o)
 }
 
 // SetName implements NamingOption interface
-func (self *resolveOptions) SetName(names ...string) {
+func (o *resolveOptions) SetName(names ...string) {
 	if len(names) > 0 {
-		self.name = names[0]
+		o.name = names[0]
 	}
 }
 
@@ -120,11 +120,11 @@ func newCallOptions(opts []Option) (out callOptions) {
 }
 
 // Apply implements Options interface
-func (self *callOptions) Apply(opt Option) {
-	opt(self)
+func (o *callOptions) Apply(opt Option) {
+	opt(o)
 }
 
 // SetReturn implements ReturnOption interface
-func (self *callOptions) SetReturn(returns ...interface{}) {
-	self.returns = returns
+func (o *callOptions) SetReturn(returns ...interface{}) {
+	o.returns = returns
 }

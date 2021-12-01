@@ -33,7 +33,7 @@ func (suite *ResolverSuite) TearDownTest() {
 func (suite *ResolverSuite) TestNewResolver() {
 	var rsl = di.NewResolver()
 	suite.Require().NotNil(rsl)
-	suite.Require().EqualError(di.Call(context.Background(), func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(di.Call(context.Background(), func(s Shape) { return }), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestCallMulti() {
@@ -68,7 +68,7 @@ func (suite *ResolverSuite) TestCallWith() {
 
 	var db = newMySQL()
 
-	suite.Require().EqualError(suite.resolver.Call(func(s Shape, db Database) { return }), "di: no binding found for: di_test.Database")
+	suite.Require().EqualError(suite.resolver.Call(func(s Shape, db Database) { return }), "di: no binding found for di_test.Database")
 	suite.Require().NoError(suite.resolver.With(db).Call(func(s Shape, db Database) { return }))
 }
 
@@ -76,7 +76,7 @@ func (suite *ResolverSuite) TestCallImplementationWithDiff() {
 	var circle = newCircle()
 	suite.Require().NoError(suite.container.Implementation(circle))
 
-	suite.Require().EqualError(suite.resolver.Call(func(s Shape) { return }), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Call(func(s Shape) { return }), "di: no binding found for di_test.Shape")
 	suite.Require().NoError(suite.resolver.With(circle).Call(func(s Shape) { return }))
 }
 
@@ -86,7 +86,7 @@ func (suite *ResolverSuite) TestCallNotAFunc() {
 
 func (suite *ResolverSuite) TestCallUnboundArg() {
 	suite.Require().NoError(suite.container.Singleton(newCircle))
-	suite.Require().EqualError(suite.resolver.Call(func(s Shape, d Database) {}), "di: no binding found for: di_test.Database")
+	suite.Require().EqualError(suite.resolver.Call(func(s Shape, d Database) {}), "di: no binding found for di_test.Database")
 }
 
 func (suite *ResolverSuite) TestCallReceiverNumMismatch() {
@@ -144,7 +144,7 @@ func (suite *ResolverSuite) TestResolveMultiContainer() {
 	suite.Require().IsType(&Rectangle{}, s)
 
 	var db Database
-	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for: di_test.Database")
+	suite.Require().EqualError(suite.resolver.Resolve(&db), "di: no binding found for di_test.Database")
 	suite.Require().Nil(db)
 
 	suite.Require().NoError(localResolver.Resolve(&db))
@@ -162,7 +162,7 @@ func (suite *ResolverSuite) TestResolveReceiverNotAPointer() {
 
 func (suite *ResolverSuite) TestResolveUnbound() {
 	var s Shape
-	suite.Require().EqualError(suite.resolver.Resolve(&s), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Resolve(&s), "di: no binding found for di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestResolveInvokeError() {
@@ -238,7 +238,7 @@ func (suite *ResolverSuite) TestFillMap() {
 
 func (suite *ResolverSuite) TestFillReceiverInvalid() {
 	var target = 0
-	suite.Require().EqualError(suite.resolver.Fill(&target), "di: invalid receiver")
+	suite.Require().EqualError(suite.resolver.Fill(&target), "di: invalid receiver: *int: filling *int")
 }
 
 func (suite *ResolverSuite) TestFillReceiverNil() {
@@ -257,7 +257,7 @@ func (suite *ResolverSuite) TestFillInvalidName() {
 		S Shape `di:"name"`
 	}{}
 
-	suite.Require().EqualError(suite.resolver.Fill(&target), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Fill(&target), `di: no binding found for di_test.Shape: filling *struct { S di_test.Shape "di:\"name\"" }`)
 }
 
 func (suite *ResolverSuite) TestFillInvalidTag() {
@@ -266,12 +266,12 @@ func (suite *ResolverSuite) TestFillInvalidTag() {
 		S Shape `di:"invalid"`
 	}{}
 
-	suite.Require().EqualError(suite.resolver.Fill(&target), "di: S has an invalid struct tag")
+	suite.Require().EqualError(suite.resolver.Fill(&target), `di: S has an invalid struct tag: filling *struct { S di_test.Shape "di:\"invalid\"" }`)
 }
 
 func (suite *ResolverSuite) TestFillSliceUnbound() {
 	var list []Shape
-	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for di_test.Shape: filling *[]di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestFillSliceFactoryError() {
@@ -279,19 +279,19 @@ func (suite *ResolverSuite) TestFillSliceFactoryError() {
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
 
 	var list []Database
-	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error")
+	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error: filling *[]di_test.Database")
 }
 
 func (suite *ResolverSuite) TestFillInvalidMap() {
 	suite.Require().NoError(suite.container.Singleton(newCircle))
 
 	var list = map[int]Shape{}
-	suite.Require().EqualError(suite.resolver.Fill(&list), "di: invalid receiver")
+	suite.Require().EqualError(suite.resolver.Fill(&list), "di: invalid receiver: *map[int]di_test.Shape: filling *map[int]di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestFillMapUnbound() {
 	var list map[string]Shape
-	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for: di_test.Shape")
+	suite.Require().EqualError(suite.resolver.Fill(&list), "di: no binding found for di_test.Shape: filling *map[string]di_test.Shape")
 }
 
 func (suite *ResolverSuite) TestFillMapFactoryError() {
@@ -299,5 +299,5 @@ func (suite *ResolverSuite) TestFillMapFactoryError() {
 	suite.Require().NoError(suite.container.Factory(func() Database { return newMongoDB(errors.New("dummy error")) }))
 
 	var list map[string]Database
-	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error")
+	suite.Require().EqualError(suite.resolver.Fill(&list), "dummy error: filling *map[string]di_test.Database")
 }

@@ -18,9 +18,11 @@ func Ctx(ctxt context.Context) Context {
 	}
 }
 
+type ctxKey string
+
 const (
-	ctxKeyContainer = "di.ctx.container"
-	ctxKeyResolver  = "di.ctx.resolver"
+	ctxKeyContainer ctxKey = "di.ctx.container"
+	ctxKeyResolver  ctxKey = "di.ctx.resolver"
 )
 
 type ctx struct {

@@ -7,6 +7,7 @@ import (
 	"unsafe"
 )
 
+// NewResolver constructs a Resolver against one or more Containers
 func NewResolver(containers ...Container) Resolver {
 	if containers == nil {
 		containers = make([]Container, 0)
@@ -17,6 +18,7 @@ func NewResolver(containers ...Container) Resolver {
 	}
 }
 
+// Resolver implements methods for several implementation resolution scenarios
 type Resolver interface {
 	With(implementations ...interface{}) Resolver
 	Resolve(receiver interface{}, opts ...Option) error

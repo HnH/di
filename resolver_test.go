@@ -183,9 +183,15 @@ func (suite *ResolverSuite) TestFillStruct() {
 		S Shape    `di:"type"`
 		D Database `di:"type"`
 		R Shape    `di:"name"`
+		U *struct {
+			U Shape `di:"type"`
+		} `di:"recursive"`
 		X string
 		y int
 	}{
+		U: &struct {
+			U Shape `di:"type"`
+		}{},
 		X: "dummy string",
 		y: 100,
 	}
@@ -195,6 +201,7 @@ func (suite *ResolverSuite) TestFillStruct() {
 	suite.Require().IsType(&Circle{}, target.S)
 	suite.Require().IsType(&MySQL{}, target.D)
 	suite.Require().IsType(&Rectangle{}, target.R)
+	suite.Require().IsType(&Circle{}, target.U.U)
 	suite.Require().Equal(target.X, "dummy string")
 	suite.Require().Equal(target.y, 100)
 }
@@ -267,6 +274,15 @@ func (suite *ResolverSuite) TestFillInvalidTag() {
 	}{}
 
 	suite.Require().EqualError(suite.resolver.Fill(&target), `di: S has an invalid struct tag: filling *struct { S di_test.Shape "di:\"invalid\"" }`)
+}
+
+func (suite *ResolverSuite) TestFillInvalidRecursive() {
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("R")))
+	var target = struct {
+		R Rectangle `di:"recursive"`
+	}{}
+
+	suite.Require().EqualError(suite.resolver.Fill(&target), `di: receiver is not a pointer: struct: filling *struct { R di_test.Rectangle "di:\"recursive\"" }`)
 }
 
 func (suite *ResolverSuite) TestFillSliceUnbound() {

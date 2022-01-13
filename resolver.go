@@ -31,9 +31,9 @@ type resolver struct {
 	implementations []interface{}
 }
 
-func (rvr *resolver) getBinding(abstraction reflect.Type, name string) (bnd Binding, err error) {
+func (self *resolver) getBinding(abstraction reflect.Type, name string) (bnd Binding, err error) {
 	// look in with() implementation list
-	for _, inst := range rvr.implementations {
+	for _, inst := range self.implementations {
 		if reflect.TypeOf(inst).AssignableTo(abstraction) && name == DefaultBindName {
 			return Binding{
 				instance: inst,
@@ -43,7 +43,7 @@ func (rvr *resolver) getBinding(abstraction reflect.Type, name string) (bnd Bind
 
 	// look in containers
 	var list map[string]Binding
-	for _, cnt := range rvr.containers {
+	for _, cnt := range self.containers {
 		if list, err = cnt.ListBindings(abstraction); err != nil {
 			continue
 		}
@@ -57,35 +57,35 @@ func (rvr *resolver) getBinding(abstraction reflect.Type, name string) (bnd Bind
 	return bnd, fmt.Errorf("di: no binding found for %s", abstraction.String())
 }
 
-func (rvr *resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
-	var bnd, err = rvr.getBinding(abstraction, name)
+func (self *resolver) resolveBinding(abstraction reflect.Type, name string) (interface{}, error) {
+	var bnd, err = self.getBinding(abstraction, name)
 	if err != nil {
 		return nil, err
 	}
 
-	return rvr.resolveBindingInstance(bnd)
+	return self.resolveBindingInstance(bnd)
 }
 
-func (rvr *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
+func (self *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 	// Is binding already instantiated?
 	if bnd.instance != nil {
 		return bnd.instance, nil
 	}
 
 	// Or we need to call a factory method?
-	var out, err = rvr.invoke(bnd.factory)
+	var out, err = self.invoke(bnd.factory)
 	if err != nil {
 		return nil, err
 	}
 
 	if bnd.fill {
-		if err = rvr.Fill(out[0].Interface()); err != nil {
+		if err = self.Fill(out[0].Interface()); err != nil {
 			return nil, err
 		}
 	}
 
 	if t, ok := out[0].Interface().(Constructor); ok {
-		if _, err = rvr.invoke(t.Construct); err != nil {
+		if _, err = self.invoke(t.Construct); err != nil {
 			return nil, err
 		}
 	}
@@ -94,14 +94,14 @@ func (rvr *resolver) resolveBindingInstance(bnd Binding) (interface{}, error) {
 }
 
 // arguments returns container-resolved arguments of a function.
-func (rvr *resolver) arguments(function interface{}) ([]reflect.Value, error) {
+func (self *resolver) arguments(function interface{}) ([]reflect.Value, error) {
 	var (
 		ref  = reflect.TypeOf(function)
 		args = make([]reflect.Value, ref.NumIn())
 	)
 
 	for i := 0; i < ref.NumIn(); i++ {
-		var instance, err = rvr.resolveBinding(ref.In(i), DefaultBindName)
+		var instance, err = self.resolveBinding(ref.In(i), DefaultBindName)
 		if err != nil {
 			return nil, err
 		}
@@ -113,9 +113,9 @@ func (rvr *resolver) arguments(function interface{}) ([]reflect.Value, error) {
 }
 
 // invoke calls a function and returns the yielded values.
-func (rvr *resolver) invoke(function interface{}) (out []reflect.Value, err error) {
+func (self *resolver) invoke(function interface{}) (out []reflect.Value, err error) {
 	var args []reflect.Value
-	if args, err = rvr.arguments(function); err != nil {
+	if args, err = self.arguments(function); err != nil {
 		return
 	}
 
@@ -129,19 +129,19 @@ func (rvr *resolver) invoke(function interface{}) (out []reflect.Value, err erro
 }
 
 // With takes a list of instantiated implementations and tries to use them in resolving scenarios
-func (rvr *resolver) With(implementations ...interface{}) Resolver {
+func (self *resolver) With(implementations ...interface{}) Resolver {
 	var res = &resolver{
-		containers:      make([]Container, len(rvr.containers)),
+		containers:      make([]Container, len(self.containers)),
 		implementations: implementations, // this is required for us to be able to resolve already existing implementations to abstract types (interfaces)
 	}
 
-	copy(res.containers, rvr.containers)
+	copy(res.containers, self.containers)
 
 	return res
 }
 
 // Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.
-func (rvr *resolver) Call(function interface{}, opts ...Option) error {
+func (self *resolver) Call(function interface{}, opts ...Option) error {
 	var ref = reflect.TypeOf(function)
 	if ref == nil || ref.Kind() != reflect.Func {
 		return errors.New("di: invalid function")
@@ -158,7 +158,7 @@ func (rvr *resolver) Call(function interface{}, opts ...Option) error {
 		return fmt.Errorf("di: cannot assign %d returned values to %d receivers", ref.NumOut()-returnsAnError, len(options.returns))
 	}
 
-	var args, err = rvr.arguments(function)
+	var args, err = self.arguments(function)
 	if err != nil {
 		return err
 	}
@@ -182,7 +182,7 @@ func (rvr *resolver) Call(function interface{}, opts ...Option) error {
 }
 
 // Resolve takes a receiver and fills it with the related implementation.
-func (rvr *resolver) Resolve(receiver interface{}, opts ...Option) error {
+func (self *resolver) Resolve(receiver interface{}, opts ...Option) error {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil || ref.Kind() != reflect.Ptr {
 		return errors.New("di: invalid receiver")
@@ -190,7 +190,7 @@ func (rvr *resolver) Resolve(receiver interface{}, opts ...Option) error {
 
 	var (
 		options   = newResolveOptions(opts)
-		inst, err = rvr.resolveBinding(ref.Elem(), options.name)
+		inst, err = self.resolveBinding(ref.Elem(), options.name)
 	)
 
 	if err != nil {
@@ -204,7 +204,7 @@ func (rvr *resolver) Resolve(receiver interface{}, opts ...Option) error {
 
 // Fill takes a struct and resolves the fields with the tag `di:"..."`.
 // Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
-func (rvr *resolver) Fill(receiver interface{}) (err error) {
+func (self *resolver) Fill(receiver interface{}) (err error) {
 	var ref = reflect.TypeOf(receiver)
 	if ref == nil {
 		return errors.New("di: invalid receiver: nil")
@@ -222,11 +222,11 @@ func (rvr *resolver) Fill(receiver interface{}) (err error) {
 
 	switch ref.Elem().Kind() {
 	case reflect.Struct:
-		err = rvr.fillStruct(receiver)
+		err = self.fillStruct(receiver)
 		return err
 
 	case reflect.Slice:
-		err = rvr.fillSlice(receiver)
+		err = self.fillSlice(receiver)
 		return
 
 	case reflect.Map:
@@ -234,14 +234,14 @@ func (rvr *resolver) Fill(receiver interface{}) (err error) {
 			break
 		}
 
-		err = rvr.fillMap(receiver)
+		err = self.fillMap(receiver)
 		return
 	}
 
 	return fmt.Errorf("di: invalid receiver: %s", ref.String())
 }
 
-func (rvr *resolver) fillStruct(receiver interface{}) error {
+func (self *resolver) fillStruct(receiver interface{}) error {
 	var elem = reflect.ValueOf(receiver).Elem()
 	for i := 0; i < elem.NumField(); i++ {
 		var tag, ok = elem.Type().Field(i).Tag.Lookup("di")
@@ -257,11 +257,19 @@ func (rvr *resolver) fillStruct(receiver interface{}) error {
 		case "name":
 			name = elem.Type().Field(i).Name
 
+		case "recursive":
+			var ptr = reflect.NewAt(elem.Field(i).Type(), unsafe.Pointer(elem.Field(i).UnsafeAddr())).Elem()
+			if err := self.Fill(ptr.Interface()); err != nil {
+				return err
+			}
+
+			continue
+
 		default:
 			return fmt.Errorf("di: %v has an invalid struct tag", elem.Type().Field(i).Name)
 		}
 
-		var instance, err = rvr.resolveBinding(elem.Field(i).Type(), name)
+		var instance, err = self.resolveBinding(elem.Field(i).Type(), name)
 		if err != nil {
 			return err
 		}
@@ -273,13 +281,13 @@ func (rvr *resolver) fillStruct(receiver interface{}) error {
 	return nil
 }
 
-func (rvr *resolver) fillSlice(receiver interface{}) error {
+func (self *resolver) fillSlice(receiver interface{}) error {
 	var (
 		elem   = reflect.TypeOf(receiver).Elem()
 		result = reflect.MakeSlice(reflect.SliceOf(elem.Elem()), 0, 3)
 	)
 
-	for _, cnt := range rvr.containers {
+	for _, cnt := range self.containers {
 		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue
@@ -287,7 +295,7 @@ func (rvr *resolver) fillSlice(receiver interface{}) error {
 
 		for _, bnd := range bindings {
 			var instance interface{}
-			if instance, err = rvr.resolveBindingInstance(bnd); err != nil {
+			if instance, err = self.resolveBindingInstance(bnd); err != nil {
 				return err
 			}
 
@@ -304,13 +312,13 @@ func (rvr *resolver) fillSlice(receiver interface{}) error {
 	return nil
 }
 
-func (rvr *resolver) fillMap(receiver interface{}) error {
+func (self *resolver) fillMap(receiver interface{}) error {
 	var (
 		elem   = reflect.TypeOf(receiver).Elem()
 		result = reflect.MakeMapWithSize(reflect.MapOf(elem.Key(), elem.Elem()), 3)
 	)
 
-	for _, cnt := range rvr.containers {
+	for _, cnt := range self.containers {
 		var bindings, err = cnt.ListBindings(elem.Elem())
 		if err != nil {
 			continue
@@ -318,7 +326,7 @@ func (rvr *resolver) fillMap(receiver interface{}) error {
 
 		for name, bnd := range bindings {
 			var instance interface{}
-			if instance, err = rvr.resolveBindingInstance(bnd); err != nil {
+			if instance, err = self.resolveBindingInstance(bnd); err != nil {
 				return err
 			}
 

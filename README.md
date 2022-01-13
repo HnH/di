@@ -160,10 +160,15 @@ err = di.Singleton(func() (Database, Database) {
 }, di.WithName("data", "cache"))
 
 type App struct {
-    mailer Mailer    `di:"type"`
-    data   Database  `di:"name"`
-    cache  Database  `di:"name"`
-    x int
+    mailer  Mailer     `di:"type"` // fills by field type (Mailer)
+    data    Database   `di:"name"` // fills by field type (Mailer) and requires binding name to be field name (data)
+    cache   Database   `di:"name"`
+    inner   struct {
+        cache Database `di:"name"`	
+    } `di:"recursive"`             // instructs DI to fill struct recursively
+    another struct {
+        cache Database `di:"name"` // won't have any affect as long as outer field in App struct won't have `di:"recursive"` tag
+    }
 }
 
 var App = App{}
@@ -175,8 +180,9 @@ err = container.Fill(&myApp)
 // [Named Bindings]
 // `App.data` will be a MySQL implementation of the Database interface
 // `App.cache` will be a Redis implementation of the Database interface
+// `App.inner.cache` will be a Redis implementation of the Database interface
 
-// `App.x` will be ignored since it has no `di` tag
+// `App.another` will be ignored since it has no `di` tag
 ```
 
 Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.

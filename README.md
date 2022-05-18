@@ -188,7 +188,7 @@ Notice that by default `Fill()` method returns error if unable to resolve any st
 If one of the fields if optional, omitempty suffix should be added to the di tag.
 ```go
 type App struct {
-    mailer  Mailer     `di:"type,omitempty"` // Fill will not return error if Mailer was not provided
+    mailer  Mailer `di:"type,omitempty"` // Fill will not return error if Mailer was not provided
 }
 ```
 

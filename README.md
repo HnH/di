@@ -184,6 +184,13 @@ err = container.Fill(&myApp)
 
 // `App.another` will be ignored since it has no `di` tag
 ```
+Notice that by default `Fill()` method returns error if unable to resolve any struct fields.
+If one of the fields if optional, omitempty suffix should be added to the di tag.
+```go
+type App struct {
+    mailer  Mailer `di:"type,omitempty"` // Fill will not return error if Mailer was not provided
+}
+```
 
 Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
 

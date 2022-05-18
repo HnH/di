@@ -206,6 +206,26 @@ func (suite *ResolverSuite) TestFillStruct() {
 	suite.Require().Equal(target.y, 100)
 }
 
+func (suite *ResolverSuite) TestFillStructOmitempty() {
+	suite.Require().NoError(suite.container.Singleton(newMySQL))
+
+	var target = struct {
+		S Shape    `di:"type"`
+		D Database `di:"type"`
+	}{}
+
+	suite.Require().Error(suite.resolver.Fill(&target))
+
+	var optionalTarget = struct {
+		S Shape    `di:"type,omitempty"`
+		D Database `di:"type"`
+	}{}
+
+	suite.Require().NoError(suite.resolver.Fill(&optionalTarget))
+	suite.Require().Nil(optionalTarget.S)
+	suite.Require().IsType(&MySQL{}, optionalTarget.D)
+}
+
 func (suite *ResolverSuite) TestFillSlice() {
 	suite.Require().NoError(suite.container.Singleton(newCircle, di.WithName("circle")))
 	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("square")))

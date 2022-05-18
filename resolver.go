@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"unsafe"
 )
 
@@ -249,6 +250,9 @@ func (self *resolver) fillStruct(receiver interface{}) error {
 			continue
 		}
 
+		var canBeSkipped bool
+		tag, canBeSkipped = self.canBeSkipped(tag)
+
 		var name string
 		switch tag {
 		case "type":
@@ -271,6 +275,10 @@ func (self *resolver) fillStruct(receiver interface{}) error {
 
 		var instance, err = self.resolveBinding(elem.Field(i).Type(), name)
 		if err != nil {
+			if canBeSkipped {
+				continue
+			}
+
 			return err
 		}
 
@@ -341,4 +349,16 @@ func (self *resolver) fillMap(receiver interface{}) error {
 	reflect.ValueOf(receiver).Elem().Set(result)
 
 	return nil
+}
+
+func (self *resolver) canBeSkipped(tag string) (string, bool) {
+	const omitemptySuffix = ",omitempty"
+	var isOmitempty bool
+
+	if strings.Contains(tag, omitemptySuffix) {
+		isOmitempty = true
+		tag = strings.TrimSuffix(tag, omitemptySuffix)
+	}
+
+	return tag, isOmitempty
 }

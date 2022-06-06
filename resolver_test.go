@@ -263,6 +263,42 @@ func (suite *ResolverSuite) TestFillMap() {
 	suite.Require().IsType(&Rectangle{}, shapes["square"])
 }
 
+func (suite *ResolverSuite) TestFillStructWithSliceMap() {
+	suite.Require().NoError(suite.container.Singleton(newCircle, di.WithName("circle")))
+	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("square")))
+
+	var shapes struct {
+		list []Shape          `di:"recursive"`
+		dict map[string]Shape `di:"recursive"`
+	}
+
+	suite.Require().NoError(suite.resolver.Fill(&shapes))
+	suite.Require().Equal(2, len(shapes.list))
+	suite.Require().Equal(2, len(shapes.dict))
+
+	var list = map[string]struct{}{
+		reflect.TypeOf(shapes.list[0]).Elem().Name(): {},
+		reflect.TypeOf(shapes.list[1]).Elem().Name(): {},
+	}
+
+	_, ok := list["Circle"]
+	suite.Require().True(ok)
+
+	_, ok = list["Rectangle"]
+	suite.Require().True(ok)
+
+	var dict = map[string]struct{}{
+		reflect.TypeOf(shapes.dict["circle"]).Elem().Name(): {},
+		reflect.TypeOf(shapes.dict["square"]).Elem().Name(): {},
+	}
+
+	_, ok = dict["Circle"]
+	suite.Require().True(ok)
+
+	_, ok = dict["Rectangle"]
+	suite.Require().True(ok)
+}
+
 func (suite *ResolverSuite) TestFillReceiverInvalid() {
 	var target = 0
 	suite.Require().EqualError(suite.resolver.Fill(&target), "di: invalid receiver: *int: filling *int")

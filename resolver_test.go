@@ -332,13 +332,16 @@ func (suite *ResolverSuite) TestFillInvalidTag() {
 	suite.Require().EqualError(suite.resolver.Fill(&target), `di: S has an invalid struct tag: filling *struct { S di_test.Shape "di:\"invalid\"" }`)
 }
 
-func (suite *ResolverSuite) TestFillInvalidRecursive() {
-	suite.Require().NoError(suite.container.Singleton(newRectangle, di.WithName("R")))
+func (suite *ResolverSuite) TestFillRecursiveStruct() {
+	suite.Require().NoError(suite.container.Singleton(newRectangle))
 	var target = struct {
-		R Rectangle `di:"recursive"`
+		inner struct {
+			S Shape `di:"type"`
+		} `di:"recursive"`
 	}{}
 
-	suite.Require().EqualError(suite.resolver.Fill(&target), `di: receiver is not a pointer: struct: filling *struct { R di_test.Rectangle "di:\"recursive\"" }`)
+	suite.Require().NoError(suite.resolver.Fill(&target))
+	suite.Require().Equal(newRectangle().GetArea(), target.inner.S.GetArea())
 }
 
 func (suite *ResolverSuite) TestFillSliceUnbound() {

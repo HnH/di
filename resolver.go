@@ -264,7 +264,8 @@ func (self *resolver) fillStruct(receiver interface{}) error {
 		case "recursive":
 			var ptr = reflect.NewAt(elem.Field(i).Type(), unsafe.Pointer(elem.Field(i).UnsafeAddr())).Elem()
 
-			if ptr.Kind() == reflect.Slice || ptr.Kind() == reflect.Map {
+			switch ptr.Kind() {
+			case reflect.Slice, reflect.Map, reflect.Struct:
 				ptr = ptr.Addr()
 			}
 

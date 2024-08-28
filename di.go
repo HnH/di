@@ -16,17 +16,17 @@ import (
 var globalContext = Ctx(context.Background()).SetContainer(NewContainer())
 
 // Singleton binds value(s) returned from constructor as a singleton objects of related types.
-func Singleton(ctx context.Context, constructor interface{}, opts ...Option) error {
+func Singleton(ctx context.Context, constructor any, opts ...Option) error {
 	return Ctx(ctx).Container().Singleton(constructor, opts...)
 }
 
 // Factory binds constructor as a factory method of related type.
-func Factory(ctx context.Context, constructor interface{}, opts ...Option) error {
+func Factory(ctx context.Context, constructor any, opts ...Option) error {
 	return Ctx(ctx).Container().Factory(constructor, opts...)
 }
 
 // Implementation receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored
-func Implementation(ctx context.Context, implementation interface{}, opts ...Option) error {
+func Implementation(ctx context.Context, implementation any, opts ...Option) error {
 	return Ctx(ctx).Container().Implementation(implementation, opts...)
 }
 
@@ -36,23 +36,23 @@ func Reset(ctx context.Context) {
 }
 
 // With takes a list of instantiated implementations and tries to use them in resolving scenarios
-func With(ctx context.Context, implementations ...interface{}) Resolver {
+func With(ctx context.Context, implementations ...any) Resolver {
 	return Ctx(ctx).Resolver().With(implementations...)
 }
 
 // Call takes a function, builds a list of arguments for it from the available bindings, calls it and returns a result.
-func Call(ctx context.Context, function interface{}, opts ...Option) error {
+func Call(ctx context.Context, function any, opts ...Option) error {
 	return Ctx(ctx).Resolver().Call(function, opts...)
 }
 
 // Resolve takes a receiver and fills it with the related implementation.
-func Resolve(ctx context.Context, receiver interface{}, opts ...Option) error {
+func Resolve(ctx context.Context, receiver any, opts ...Option) error {
 	return Ctx(ctx).Resolver().Resolve(receiver, opts...)
 }
 
 // Fill takes a struct and resolves the fields with the tag `di:"..."`.
 // Alternatively map[string]Type or []Type can be provided. It will be filled with all available implementations of provided Type.
-func Fill(ctx context.Context, receiver interface{}) error {
+func Fill(ctx context.Context, receiver any) error {
 	return Ctx(ctx).Resolver().Fill(receiver)
 }
 

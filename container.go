@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"runtime"
 	"sync"
 )
 
 // Container is responsible for abstraction binding
 type Container interface {
-	Singleton(constructor interface{}, opts ...Option) error
-	Factory(constructor interface{}, opts ...Option) error
-	Implementation(implementation interface{}, opts ...Option) error
+	Singleton(constructor any, opts ...Option) error
+	Factory(constructor any, opts ...Option) error
+	Implementation(implementation any, opts ...Option) error
 	ListBindings(reflect.Type) (map[string]Binding, error)
 	Reset()
 }
@@ -44,9 +45,10 @@ const DefaultBindName = "default"
 
 // Binding holds either singleton instance or factory method for a binding
 type Binding struct {
-	factory  interface{} // factory method that creates the appropriate implementation of the abstraction
-	instance interface{} // instance stored for reusing in singleton bindings
-	fill     bool        // call Fill() on a returned instance after it's resolution
+	factory  any    // factory method that creates the appropriate implementation of the abstraction
+	instance any    // instance stored for reusing in singleton bindings
+	caller   string // caller stores information where the binding was declared from
+	fill     bool   // call Fill() on a returned instance after it's resolution
 }
 
 func (self *container) getResolver() *resolver {
@@ -61,7 +63,7 @@ func (self *container) getResolver() *resolver {
 }
 
 // bind creates a binding for an abstraction
-func (self *container) bind(constructor interface{}, opts bindOptions) (err error) {
+func (self *container) bind(constructor any, opts bindOptions) (err error) {
 	var ref = reflect.TypeOf(constructor)
 	if ref.Kind() != reflect.Func {
 		return errors.New("di: the constructor must be a function")
@@ -114,6 +116,8 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 			self.bindings[ref.Out(i)] = make(map[string]Binding)
 		}
 
+		var _, file, line, _ = runtime.Caller(2)
+
 		if opts.names == nil {
 			opts.names = []string{DefaultBindName}
 		}
@@ -122,7 +126,7 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 
 		// Factory method
 		if opts.factory {
-			self.bindings[ref.Out(i)][name] = Binding{factory: constructor, fill: opts.fill}
+			self.bindings[ref.Out(i)][name] = Binding{factory: constructor, caller: fmt.Sprintf("%s:%d", file, line), fill: opts.fill}
 			continue
 		}
 
@@ -133,13 +137,13 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 				name = opts.names[i]
 			}
 
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), caller: fmt.Sprintf("%s:%d", file, line), fill: opts.fill}
 			continue
 		}
 
 		// if only one instance is returned from constructor - bind it under all provided names
 		for _, name = range opts.names {
-			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), fill: opts.fill}
+			self.bindings[ref.Out(i)][name] = Binding{instance: instances[i].Interface(), caller: fmt.Sprintf("%s:%d", file, line), fill: opts.fill}
 		}
 	}
 
@@ -147,12 +151,12 @@ func (self *container) bind(constructor interface{}, opts bindOptions) (err erro
 }
 
 // Singleton binds value(s) returned from constructor as a singleton objects of related types.
-func (self *container) Singleton(constructor interface{}, opts ...Option) error {
+func (self *container) Singleton(constructor any, opts ...Option) error {
 	return self.bind(constructor, newBindOptions(opts))
 }
 
 // Factory binds constructor as a factory method of related type.
-func (self *container) Factory(constructor interface{}, opts ...Option) error {
+func (self *container) Factory(constructor any, opts ...Option) error {
 	var options = newBindOptions(opts)
 	options.factory = true
 
@@ -160,7 +164,7 @@ func (self *container) Factory(constructor interface{}, opts ...Option) error {
 }
 
 // Implementation receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored
-func (self *container) Implementation(implementation interface{}, opts ...Option) error {
+func (self *container) Implementation(implementation any, opts ...Option) error {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
@@ -174,7 +178,8 @@ func (self *container) Implementation(implementation interface{}, opts ...Option
 		options.names = []string{DefaultBindName}
 	}
 
-	self.bindings[ref][options.names[0]] = Binding{instance: implementation}
+	var _, file, line, _ = runtime.Caller(1)
+	self.bindings[ref][options.names[0]] = Binding{instance: implementation, caller: fmt.Sprintf("%s:%d", file, line)}
 
 	return nil
 }

@@ -18,9 +18,9 @@ go get github.com/HnH/di
 ### Container
 ```go
 type Container interface {
-    Singleton(constructor interface{}, opts ...Option) error
-    Factory(constructor interface{}, opts ...Option) error
-    Implementation(implementation interface{}, opts ...Option) error
+    Singleton(constructor any, opts ...Option) error
+    Factory(constructor any, opts ...Option) error
+    Implementation(implementation any, opts ...Option) error
     ListBindings(reflect.Type) (map[string]Binding, error)
     Reset()
 }
@@ -100,10 +100,10 @@ err = di.Resolve(&c, di.WithName("customName"))
 ### Resolver
 ```go
 type Resolver interface {
-    With(implementations ...interface{}) Resolver
-    Resolve(receiver interface{}, opts ...Option) error
-    Call(function interface{}, opts ...Option) error
-    Fill(receiver interface{}) error
+    With(implementations ...any) Resolver
+    Resolve(receiver any, opts ...Option) error
+    Call(function any, opts ...Option) error
+    Fill(receiver any) error
 }
 ```
 #### With

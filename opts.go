@@ -15,7 +15,7 @@ type NamingOption interface {
 
 // ReturnOption supports setting a return target
 type ReturnOption interface {
-	SetReturn(...interface{})
+	SetReturn(...any)
 }
 
 // FillingOption supports setting a fill flag
@@ -33,7 +33,7 @@ func WithName(names ...string) Option {
 }
 
 // WithReturn returns a ReturnOption
-func WithReturn(returns ...interface{}) Option {
+func WithReturn(returns ...any) Option {
 	return func(o Options) {
 		if opt, ok := o.(ReturnOption); ok {
 			opt.SetReturn(returns...)
@@ -108,7 +108,7 @@ func (o *resolveOptions) SetName(names ...string) {
 
 // options for resolving abstractions
 type callOptions struct {
-	returns []interface{}
+	returns []any
 }
 
 func newCallOptions(opts []Option) (out callOptions) {
@@ -125,6 +125,6 @@ func (o *callOptions) Apply(opt Option) {
 }
 
 // SetReturn implements ReturnOption interface
-func (o *callOptions) SetReturn(returns ...interface{}) {
+func (o *callOptions) SetReturn(returns ...any) {
 	o.returns = returns
 }

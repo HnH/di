@@ -1,6 +1,9 @@
 package di
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Context describe DI context propagator capabilities
 type Context interface {
@@ -8,6 +11,7 @@ type Context interface {
 	Container() Container
 	SetResolver(Resolver) Context
 	Resolver() Resolver
+	Visualize() []string
 	Raw() context.Context
 }
 
@@ -57,6 +61,41 @@ func (self *ctx) Resolver() Resolver {
 	}
 
 	return NewResolver(self.Container())
+}
+
+func (self *ctx) Visualize() []string {
+	var out = make([]string, 0, 100)
+
+	var r, ok = self.Resolver().(*resolver)
+	if !ok {
+		return out
+	}
+
+	out = append(out, fmt.Sprintf("resolver has [%d] containers", len(r.containers)))
+	for i, c := range r.containers {
+		var cnt *container
+		if cnt, ok = c.(*container); !ok {
+			continue
+		}
+
+		out = append(out, fmt.Sprintf("  -> container [%d] has [%d] type binding(s)", i, len(cnt.bindings)))
+
+		for t, bindingList := range cnt.bindings {
+			out = append(out, fmt.Sprintf("    -> [%s] has [%d] binding(s)", t.String(), len(bindingList)))
+
+			for name, binding := range bindingList {
+				out = append(out, fmt.Sprintf("     • [%s] %s declared at [%s]", name, func() string {
+					if binding.factory != nil {
+						return "factory"
+					}
+
+					return "instance"
+				}(), binding.caller))
+			}
+		}
+	}
+
+	return out
 }
 
 // Raw returns raw context.Context

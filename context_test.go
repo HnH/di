@@ -2,6 +2,7 @@ package di_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/HnH/di"
@@ -60,6 +61,24 @@ func (suite *ContextSuite) TestResolve() {
 
 	suite.context.Container().Reset()
 	suite.Require().EqualError(suite.context.Resolver().Resolve(&shape), "di: no binding found for di_test.Shape")
+}
+
+func (suite *ContextSuite) TestVisualize() {
+	suite.Require().Equal([]string{
+		"resolver has [1] containers",
+		"  -> container [0] has [0] type binding(s)",
+	}, suite.context.Visualize())
+
+	suite.context.Container().Singleton(newCircle)
+	suite.context.Container().Factory(newMySQL)
+	var out = suite.context.Visualize()
+
+	suite.Require().Equal("resolver has [1] containers", out[0])
+	suite.Require().Equal("  -> container [0] has [2] type binding(s)", out[1])
+	suite.Require().Equal("    -> [di_test.Shape] has [1] binding(s)", out[2])
+	suite.Require().True(strings.Contains(out[3], "di/context_test.go:72"))
+	suite.Require().Equal("    -> [di_test.Database] has [1] binding(s)", out[4])
+	suite.Require().True(strings.Contains(out[5], "di/context_test.go:73"))
 }
 
 func (suite *ContextSuite) TestRaw() {

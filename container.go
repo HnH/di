@@ -165,8 +165,8 @@ func (self *container) Factory(constructor any, opts ...Option) error {
 
 // Implementation receives ready instance and binds it to its REAL type, which means that declared abstract variable type (interface) is ignored
 func (self *container) Implementation(implementation any, opts ...Option) error {
-	self.lock.RLock()
-	defer self.lock.RUnlock()
+	self.lock.Lock()
+	defer self.lock.Unlock()
 
 	var ref = reflect.TypeOf(implementation)
 	if _, ok := self.bindings[ref]; !ok {

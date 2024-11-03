@@ -57,7 +57,7 @@ func (self *ctx) SetResolver(r Resolver) Context {
 // Resolver returns a resolver instance either preset or against a Container() output
 func (self *ctx) Resolver() Resolver {
 	if r, has := self.Context.Value(ctxKeyResolver).(Resolver); has {
-		return r
+		return r.With(self.Context)
 	}
 
 	return NewResolver(self.Container())

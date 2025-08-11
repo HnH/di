@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 	"unsafe"
 )
+
+var globalMutext = sync.Mutex{}
 
 // NewResolver constructs a Resolver against one or more Containers
 func NewResolver(containers ...Container) Resolver {
@@ -243,6 +246,8 @@ func (self *resolver) Fill(receiver any) (err error) {
 }
 
 func (self *resolver) fillStruct(receiver any) error {
+	globalMutext.Lock()
+	defer globalMutext.Unlock()
 	var elem = reflect.ValueOf(receiver).Elem()
 	for i := 0; i < elem.NumField(); i++ {
 		var tag, ok = elem.Type().Field(i).Tag.Lookup("di")

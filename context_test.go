@@ -35,10 +35,26 @@ func (suite *ContextSuite) TestSetContainer() {
 func (suite *ContextSuite) TestSetResolver() {
 	var (
 		ctx = di.Ctx(context.Background())
-		rsl = di.NewResolver(di.NewContainer())
+		cnt = di.NewContainer()
+		rsl = di.NewResolver(cnt)
 	)
 
+	type WTF struct {
+		Something string
+	}
+
+	suite.Require().NoError(cnt.Singleton(func() WTF { return WTF{"going on"} }))
+
+	var res1 WTF
+	suite.Require().NoError(rsl.Resolve(&res1))
+	suite.Require().Equal("going on", res1.Something)
+
 	suite.Require().NotNil(ctx.SetResolver(rsl).Raw())
+
+	var res2 WTF
+	suite.Require().NoError(ctx.Resolver().Resolve(&res2))
+	suite.Require().Equal(res1.Something, res2.Something)
+
 	suite.Require().Equal(rsl, ctx.Resolver())
 }
 
@@ -63,22 +79,23 @@ func (suite *ContextSuite) TestResolve() {
 	suite.Require().EqualError(suite.context.Resolver().Resolve(&shape), "di: no binding found for di_test.Shape")
 }
 
+// TODO: something with binding order
 func (suite *ContextSuite) TestVisualize() {
 	suite.Require().Equal([]string{
 		"resolver has [1] containers",
 		"  -> container [0] has [0] type binding(s)",
 	}, suite.context.Visualize())
 
-	suite.context.Container().Singleton(newCircle)
-	suite.context.Container().Factory(newMySQL)
+	suite.Require().NoError(suite.context.Container().Singleton(newCircle))
+	suite.Require().NoError(suite.context.Container().Factory(newMySQL))
 	var out = suite.context.Visualize()
 
 	suite.Require().Equal("resolver has [1] containers", out[0])
 	suite.Require().Equal("  -> container [0] has [2] type binding(s)", out[1])
 	suite.Require().Equal("    -> [di_test.Shape] has [1] binding(s)", out[2])
-	suite.Require().True(strings.Contains(out[3], "di/context_test.go:72"))
+	suite.Require().True(strings.Contains(out[3], "di/context_test.go:89"))
 	suite.Require().Equal("    -> [di_test.Database] has [1] binding(s)", out[4])
-	suite.Require().True(strings.Contains(out[5], "di/context_test.go:73"))
+	suite.Require().True(strings.Contains(out[5], "di/context_test.go:90"))
 }
 
 func (suite *ContextSuite) TestRaw() {

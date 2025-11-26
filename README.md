@@ -26,6 +26,21 @@ type Container interface {
 }
 ```
 
+#### Constructors
+
+Both `Singleton()` and `Factory()` accepts Constructor as a first argument. They have some differences in how DI handles them, but in common
+both `Singleton()` and `Factory()` Constructor functions may require arguments which will be resolved against di.Container at abstraction resolution time.
+
+Moreover, `di.WithImplementation()` option may provide additional implementations that won't affect Container, but will be used just for the single binding resolution.
+
+```go
+// Here Constructor will receive context.Context provided via di.WithImplementation() but will not appear in container
+// You can mix Constructor arguments with both Container and WithImplementation() dependencies
+err = di.Singleton(func(ctx context.Context) (Abstraction) {
+    return newAbstraction(ctx)
+}, di.WithImplementation(ctx))
+```
+
 #### Singleton
 `Singleton()` method requires a constructor which will return Implementation(s) of Abstraction(s). Constructor will be called once 
 and returned Implementations(s) will later always bound to Abstraction(s) on resolution requests.

@@ -49,8 +49,7 @@ func (suite *ContextSuite) TestSetResolver() {
 	suite.Require().NoError(rsl.Resolve(&res1))
 	suite.Require().Equal("going on", res1.Something)
 
-	var rctx = ctx.SetResolver(rsl).Raw()
-	suite.Require().NotNil(rctx)
+	suite.Require().NotNil(ctx.SetResolver(rsl).Raw())
 
 	var res2 WTF
 	suite.Require().NoError(ctx.Resolver().Resolve(&res2))
@@ -94,9 +93,9 @@ func (suite *ContextSuite) TestVisualize() {
 	suite.Require().Equal("resolver has [1] containers", out[0])
 	suite.Require().Equal("  -> container [0] has [2] type binding(s)", out[1])
 	suite.Require().Equal("    -> [di_test.Shape] has [1] binding(s)", out[2])
-	suite.Require().True(strings.Contains(out[3], "di/context_test.go:90"))
+	suite.Require().True(strings.Contains(out[3], "di/context_test.go:89"))
 	suite.Require().Equal("    -> [di_test.Database] has [1] binding(s)", out[4])
-	suite.Require().True(strings.Contains(out[5], "di/context_test.go:91"))
+	suite.Require().True(strings.Contains(out[5], "di/context_test.go:90"))
 }
 
 func (suite *ContextSuite) TestRaw() {

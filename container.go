@@ -51,7 +51,7 @@ type Binding struct {
 	fill     bool   // call Fill() on a returned instance after it's resolution
 }
 
-func (self *container) getResolver() *resolver {
+func (self *container) getResolver(opts bindOptions) *resolver {
 	self.lock.RLock()
 	defer self.lock.RUnlock()
 
@@ -59,6 +59,7 @@ func (self *container) getResolver() *resolver {
 		containers: []Container{
 			self,
 		},
+		implementations: opts.impl,
 	}
 }
 
@@ -86,19 +87,19 @@ func (self *container) bind(constructor any, opts bindOptions) (err error) {
 			return errors.New("di: the constructor that returns multiple values must be called with either one name or number of names equal to number of values")
 		}
 
-		if instances, err = self.getResolver().invoke(constructor); err != nil {
+		if instances, err = self.getResolver(opts).invoke(constructor); err != nil {
 			return
 		}
 
 		for i := 0; i < numRealInstances; i++ {
 			if opts.fill {
-				if err = self.getResolver().Fill(instances[i].Interface()); err != nil {
+				if err = self.getResolver(opts).Fill(instances[i].Interface()); err != nil {
 					return
 				}
 			}
 
 			if t, ok := instances[i].Interface().(Constructor); ok {
-				if _, err = self.getResolver().invoke(t.Construct); err != nil {
+				if _, err = self.getResolver(opts).invoke(t.Construct); err != nil {
 					return
 				}
 			}

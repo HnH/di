@@ -31,14 +31,14 @@ type Container interface {
 Both `Singleton()` and `Factory()` accepts Constructor as a first argument. They have some differences in how DI handles them, but in common
 both `Singleton()` and `Factory()` Constructor functions may require arguments which will be resolved against di.Container at abstraction resolution time.
 
-Moreover, `di.WithImplementation()` option may provide additional implementations that won't affect Container, but will be used just for the single binding resolution.
+Moreover, `di.WithArgs()` option may provide additional arguments to constructor that won't affect Container, but will be used just for the single binding resolution.
 
 ```go
-// Here Constructor will receive context.Context provided via di.WithImplementation() but will not appear in container
-// You can mix Constructor arguments with both Container and WithImplementation() dependencies
+// Here Constructor will receive context.Context provided via di.WithArgs() but will not appear in container
+// You can mix Constructor arguments with both Container and WithArgs() dependencies
 err = di.Singleton(func(ctx context.Context) (Abstraction) {
     return newAbstraction(ctx)
-}, di.WithImplementation(ctx))
+}, di.WithArgs(ctx))
 ```
 
 #### Singleton
@@ -175,12 +175,16 @@ err = di.Singleton(func() (Database, Database) {
 }, di.WithName("data", "cache"))
 
 type App struct {
-    mailer  Mailer     `di:"type"` // fills by field type (Mailer)
-    data    Database   `di:"name"` // fills by field type (Mailer) and requires binding name to be field name (data)
-    cache   Database   `di:"name"`
+    mailer  Mailer              `di:"type"` // fills by field type (Mailer)
+    data    Database            `di:"name"` // fills by field type (Mailer) and requires binding name to be field name (data)
+    cache   Database            `di:"name"`
+    dbList  []Database          `di:"recursive"` // will fill slice with all available implementations of Database 
+    dbMap   map[string]Database `di:"recursive"` // will fill slice with all available implementations of Database. Binding name will be used as a key
+
     inner   struct {
         cache Database `di:"name"`	
     } `di:"recursive"`             // instructs DI to fill struct recursively
+    
     another struct {
         cache Database `di:"name"` // won't have any affect as long as outer field in App struct won't have `di:"recursive"` tag
     }

@@ -59,7 +59,7 @@ func (self *container) getResolver(opts bindOptions) *resolver {
 		containers: []Container{
 			self,
 		},
-		implementations: opts.impl,
+		implementations: opts.args,
 	}
 }
 

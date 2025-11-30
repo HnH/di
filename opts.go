@@ -23,9 +23,9 @@ type FillingOption interface {
 	SetFill(bool)
 }
 
-// ImplementationOption adds more implementations when calling a constructor
-type ImplementationOption interface {
-	SetImplementations(...any)
+// ArgsOption adds more implementations when calling a constructor
+type ArgsOption interface {
+	SetArgs(...any)
 }
 
 // WithName returns a NamingOption
@@ -55,11 +55,11 @@ func WithFill() Option {
 	}
 }
 
-// WithImplementations returns a ImplementationOption
-func WithImplementations(impl ...any) Option {
+// WithArgs returns a ArgsOption
+func WithArgs(impl ...any) Option {
 	return func(o Options) {
-		if opt, ok := o.(ImplementationOption); ok {
-			opt.SetImplementations(impl...)
+		if opt, ok := o.(ArgsOption); ok {
+			opt.SetArgs(impl...)
 		}
 	}
 }
@@ -69,7 +69,7 @@ type bindOptions struct {
 	factory bool
 	fill    bool
 	names   []string
-	impl    []any
+	args    []any
 }
 
 func newBindOptions(opts []Option) (out bindOptions) {
@@ -95,9 +95,9 @@ func (o *bindOptions) SetFill(f bool) {
 	o.fill = f
 }
 
-// SetImplementations implements ImplementationOption interface
-func (o *bindOptions) SetImplementations(impl ...any) {
-	o.impl = impl
+// SetImplementations implements ArgsOption interface
+func (o *bindOptions) SetArgs(args ...any) {
+	o.args = args
 }
 
 // options for resolving abstractions

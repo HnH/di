@@ -41,7 +41,7 @@ func (suite *ContainerSuite) TestSingleton() {
 	}))
 }
 
-func (suite *ContainerSuite) TestSingletonWithImplementation() {
+func (suite *ContainerSuite) TestSingletonWithArgs() {
 	suite.Require().EqualError(
 		suite.container.Singleton(func(ctx context.Context) Shape {
 			return &Rectangle{a: 4444}
@@ -50,7 +50,7 @@ func (suite *ContainerSuite) TestSingletonWithImplementation() {
 
 	suite.Require().NoError(suite.container.Singleton(func(ctx context.Context) Shape {
 		return &Rectangle{a: 4444}
-	}, di.WithImplementations(context.Background())))
+	}, di.WithArgs(context.Background())))
 
 	var ctx context.Context
 	suite.Require().EqualError(suite.resolver.Resolve(&ctx), "di: no binding found for context.Context")
